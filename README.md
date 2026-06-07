@@ -3,6 +3,6 @@
 ```Shell
 uv sync
 
-uv run pyinstaller --onefile --name HopeCasement --add-data "assets/images;assets/images" main.py
+uv run pyinstaller --onefile --name HopeCasement src/hopecasement/__init__.py
 ```
 
