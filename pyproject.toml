@@ -1,7 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "hopecasement"
 version = "0.1.0"
-description = "Add your description here"
+description = "来日窗笺 - 随机壁纸工具"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
+
+[project.scripts]
+hopecasement = "hopecasement:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hopecasement"]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.20.0",
+]
