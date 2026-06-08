@@ -14,7 +14,7 @@ def _get_images_dir() -> Path:
     """
     if getattr(sys, "frozen", False):
         return Path(sys.executable).parent / "assets" / "images"
-    return Path(__file__).resolve().parent.parent.parent / "assets" / "images"
+    return Path(__file__).resolve().parent.parent / "assets" / "images"
 
 def _get_images(images_dir:Path) -> List:
     """根据文件夹路径获取图片路径列表"""

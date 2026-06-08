@@ -9,8 +9,11 @@ def set_wallpaper(image_path: str) -> bool:
     result = ctypes.windll.user32.SystemParametersInfoW(20, 0, abs_path, 3)
     return result
 
-def main() -> None:
-    
+def change_wallpaper():
     image_path = get_an_image()
     set_wallpaper(image_path)
+
+def main() -> None:
+    change_wallpaper()
+
 
