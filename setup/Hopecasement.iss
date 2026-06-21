@@ -3,7 +3,7 @@
 ; Non-commercial use only
 
 #define MyAppName "HopeCasement"
-#define MyAppVersion "v0.1"
+#define MyAppVersion "0.1.0"
 #define MyAppPublisher "KingKing"
 #define MyAppExeName "HopeCasement.exe"
 
@@ -34,7 +34,7 @@ OutputDir=E:\my_workspace\HopeCasement\setup
 OutputBaseFilename=HopeCasement
 SetupIconFile=E:\my_workspace\HopeCasement\setup\window_writingascreenwindo_ventana_deescritura_10765.ico
 SolidCompression=yes
-WizardStyle=modern dynamic
+WizardStyle=modern
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -54,4 +54,9 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeOnStartup /f"; Flags: runhidden
+Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeOnInterval /f"; Flags: runhidden
+Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeAtTime /f"; Flags: runhidden
 

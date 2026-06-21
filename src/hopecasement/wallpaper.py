@@ -1,19 +1,8 @@
 import ctypes
 import os
+from pathlib import Path
 
-from hopecasement.image import get_an_image
 
-def set_wallpaper(image_path: str) -> bool:
-    """将指定图片设为 Windows 桌面壁纸"""
+def set_wallpaper(image_path: Path | str) -> bool:
     abs_path = os.path.abspath(image_path)
-    result = ctypes.windll.user32.SystemParametersInfoW(20, 0, abs_path, 3)
-    return result
-
-def change_wallpaper():
-    image_path = get_an_image()
-    set_wallpaper(image_path)
-
-def main() -> None:
-    change_wallpaper()
-
-
+    return bool(ctypes.windll.user32.SystemParametersInfoW(20, 0, abs_path, 3))

@@ -1,12 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import customtkinter
 
+ctk_path = os.path.dirname(customtkinter.__file__)
 
 a = Analysis(
     ['src\\hopecasement\\__init__.py'],
-    pathex=[],
+    pathex=['src'],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=[
+        ('src\\assets\\images\\*', 'assets\\images'),
+        (os.path.join(ctk_path, 'assets'), 'customtkinter\\assets'),
+    ],
+    hiddenimports=[
+        'PIL._tkinter_finder',
+        'customtkinter',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -35,4 +44,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='setup\\window_writingascreenwindo_ventana_deescritura_10765.ico',
 )
