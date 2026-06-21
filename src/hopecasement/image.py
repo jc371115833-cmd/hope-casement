@@ -21,5 +21,5 @@ def get_background(bg_colors: list[str]) -> "Path | str":
     """Return a random background: a hex color string or a user image Path."""
     pool: list = list(bg_colors) + scan_user_images()
     if not pool:
-        raise FileNotFoundError("未配置背景。请在"背景"页面添加颜色或图片。")
+        raise FileNotFoundError("未配置背景。请在【背景】页面添加颜色或图片。")
     return random.choice(pool)
