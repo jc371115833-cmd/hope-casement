@@ -9,7 +9,6 @@ a = Analysis(
     pathex=['src'],
     binaries=[],
     datas=[
-        ('src\\assets\\images\\*', 'assets\\images'),
         (os.path.join(ctk_path, 'assets'), 'customtkinter\\assets'),
     ],
     hiddenimports=[

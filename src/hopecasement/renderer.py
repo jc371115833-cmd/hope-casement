@@ -1,3 +1,4 @@
+import ctypes
 from pathlib import Path
 
 from PIL import Image, ImageColor, ImageDraw, ImageFont
@@ -7,6 +8,11 @@ from hopecasement.config import Config, get_appdata_dir
 _FONT_CANDIDATES = ["msyh.ttc", "msyhbd.ttc", "simhei.ttf", "simsun.ttc"]
 _FONTS_DIR = Path("C:/Windows/Fonts")
 _CANT_START_LINE = frozenset('，。、；：！？）】」』》〉…·—')
+
+
+def _screen_size() -> tuple[int, int]:
+    user32 = ctypes.windll.user32
+    return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -82,9 +88,14 @@ def _calc_position(
     return positions.get(position, positions["bottom_center"])
 
 
-def render_wallpaper(background: Path, quote: str, cfg: Config) -> Path:
+def render_wallpaper(background: "Path | str", quote: str, cfg: Config) -> Path:
     font = _load_font(cfg.font_size)
-    img = Image.open(background).convert("RGBA")
+    if isinstance(background, str):
+        w, h = _screen_size()
+        rgb = ImageColor.getrgb(background)
+        img = Image.new("RGBA", (w, h), (*rgb, 255))
+    else:
+        img = Image.open(background).convert("RGBA")
     img_w, img_h = img.size
 
     line_h = int(cfg.font_size * cfg.line_spacing)

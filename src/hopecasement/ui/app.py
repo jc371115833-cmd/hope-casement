@@ -66,6 +66,7 @@ class App(ctk.CTk):
 
         self._tab_images = ImagesTab(tabs.tab("背景图"))
         self._tab_images.pack(fill="both", expand=True)
+        self._tab_images.load_config(self._cfg)
 
         self._tab_schedule = ScheduleTab(tabs.tab("换壁纸设置"), on_preview=self._preview)
         self._tab_schedule.pack(fill="both", expand=True)
@@ -78,7 +79,9 @@ class App(ctk.CTk):
         ctk.CTkButton(btn_row, text="保存设置", width=140, command=self._save).pack(side="right")
 
     def _collect_config(self) -> Config:
-        values = self._tab_schedule.get_config_values()
+        values = {}
+        values.update(self._tab_images.get_config_values())
+        values.update(self._tab_schedule.get_config_values())
         base = asdict(self._cfg)
         base.update(values)
         return Config(**base)
@@ -110,11 +113,11 @@ class App(ctk.CTk):
 
     def _preview(self):
         try:
-            from hopecasement.image import get_an_image
+            from hopecasement.image import get_background
             from hopecasement.quotes import get_random_quote
             from hopecasement.renderer import render_wallpaper
             cfg = self._collect_config()
-            out = render_wallpaper(get_an_image(), get_random_quote(), cfg)
+            out = render_wallpaper(get_background(cfg.background_colors), get_random_quote(), cfg)
             if not self._preview_win or not self._preview_win.winfo_exists():
                 self._preview_win = _PreviewWindow(self)
             self._preview_win.display(out)
