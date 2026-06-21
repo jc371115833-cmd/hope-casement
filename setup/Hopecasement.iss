@@ -23,7 +23,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=E:\my_workspace\HopeCasement\setup
 OutputBaseFilename=HopeCasement
-SetupIconFile=E:\my_workspace\HopeCasement\setup\window_writingascreenwindo_ventana_deescritura_10765.ico
+SetupIconFile=E:\my_workspace\HopeCasement\setup\hopecasement.ico
 SolidCompression=yes
 WizardStyle=modern
 
