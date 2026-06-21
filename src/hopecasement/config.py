@@ -1,5 +1,5 @@
 import json
-import os
+import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -19,8 +19,10 @@ class Config:
 
 
 def get_appdata_dir() -> Path:
-    base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-    d = base / "HopeCasement"
+    if getattr(sys, "frozen", False):
+        d = Path(sys.executable).parent
+    else:
+        d = Path(__file__).parent.parent.parent / "userdata"
     d.mkdir(parents=True, exist_ok=True)
     (d / "backgrounds").mkdir(exist_ok=True)
     return d

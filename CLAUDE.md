@@ -61,11 +61,12 @@ src/hopecasement/
 
 | 内容 | 路径 |
 |---|---|
-| 配置 | `%APPDATA%\HopeCasement\config.json` |
-| 句子库 | `%APPDATA%\HopeCasement\quotes.txt` |
-| 用户背景图 | `%APPDATA%\HopeCasement\backgrounds\` |
-| 渲染输出文件 | `%APPDATA%\HopeCasement\current_wallpaper.png` |
-| 内置背景图 | exe 同目录 `assets/images/` |
+| 配置 | exe 同目录 `config.json` |
+| 句子库 | exe 同目录 `quotes.txt` |
+| 用户背景图 | exe 同目录 `backgrounds\` |
+| 渲染输出文件 | exe 同目录 `current_wallpaper.png` |
+| 内置背景图 | exe 同目录 `assets\images\` |
+| 安装位置 | `%LocalAppData%\HopeCasement\`（无需管理员） |
 
 ## 入口逻辑
 
