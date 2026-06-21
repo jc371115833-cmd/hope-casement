@@ -12,6 +12,8 @@ class Config:
     shadow_offset: int = 2
     text_position: str = "bottom_center"
     text_padding: int = 80
+    line_spacing: float = 1.4
+    text_width_ratio: float = 0.75
     schedule_modes: list = field(default_factory=list)  # empty = manual; values: "startup","interval","daily"
     interval_hours: int = 3
     interval_minutes: int = 0

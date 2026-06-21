@@ -42,6 +42,30 @@ class ScheduleTab(ctk.CTkFrame):
                       ).pack(side="left", fill="x", expand=True)
         row += 1
 
+        label("行间距", row)
+        self._line_spacing_var = ctk.DoubleVar(value=1.4)
+        spacing_row = ctk.CTkFrame(scroll, fg_color="transparent")
+        spacing_row.grid(row=row, column=1, sticky="ew", pady=6)
+        self._line_spacing_label = ctk.CTkLabel(spacing_row, text="1.4×", width=40)
+        self._line_spacing_label.pack(side="right")
+        ctk.CTkSlider(spacing_row, from_=1.0, to=3.0, number_of_steps=20,
+                      variable=self._line_spacing_var,
+                      command=lambda v: self._line_spacing_label.configure(text=f"{v:.1f}×")
+                      ).pack(side="left", fill="x", expand=True)
+        row += 1
+
+        label("文本宽度", row)
+        self._text_width_var = ctk.IntVar(value=75)
+        width_row = ctk.CTkFrame(scroll, fg_color="transparent")
+        width_row.grid(row=row, column=1, sticky="ew", pady=6)
+        self._text_width_label = ctk.CTkLabel(width_row, text="75%", width=40)
+        self._text_width_label.pack(side="right")
+        ctk.CTkSlider(width_row, from_=30, to=100, number_of_steps=14,
+                      variable=self._text_width_var,
+                      command=lambda v: self._text_width_label.configure(text=f"{int(v)}%")
+                      ).pack(side="left", fill="x", expand=True)
+        row += 1
+
         label("文字颜色", row)
         self._font_color_var = ctk.StringVar(value="#FFFFFF")
         self._font_color_btn = ctk.CTkButton(scroll, textvariable=self._font_color_var,
@@ -134,6 +158,10 @@ class ScheduleTab(ctk.CTkFrame):
     def load_config(self, cfg: Config):
         self._font_size_var.set(cfg.font_size)
         self._font_size_label.configure(text=str(cfg.font_size))
+        self._line_spacing_var.set(cfg.line_spacing)
+        self._line_spacing_label.configure(text=f"{cfg.line_spacing:.1f}×")
+        self._text_width_var.set(int(cfg.text_width_ratio * 100))
+        self._text_width_label.configure(text=f"{int(cfg.text_width_ratio * 100)}%")
         self._font_color_var.set(cfg.font_color)
         self._shadow_color_var.set(cfg.shadow_color)
         self._shadow_offset_var.set(cfg.shadow_offset)
@@ -160,6 +188,8 @@ class ScheduleTab(ctk.CTkFrame):
             modes.append("daily")
         return {
             "font_size": int(self._font_size_var.get()),
+            "line_spacing": round(self._line_spacing_var.get(), 1),
+            "text_width_ratio": self._text_width_var.get() / 100,
             "font_color": self._font_color_var.get(),
             "shadow_color": self._shadow_color_var.get(),
             "shadow_offset": int(self._shadow_offset_var.get()),

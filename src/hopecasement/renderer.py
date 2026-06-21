@@ -6,9 +6,7 @@ from hopecasement.config import Config, get_appdata_dir
 
 _FONT_CANDIDATES = ["msyh.ttc", "msyhbd.ttc", "simhei.ttf", "simsun.ttc"]
 _FONTS_DIR = Path("C:/Windows/Fonts")
-_MAX_LINES = 3
-_LINE_SPACING_RATIO = 1.4
-_WRAP_WIDTH_RATIO = 0.75
+_CANT_START_LINE = frozenset('，。、；：！？）】」』》〉…·—')
 
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -24,7 +22,7 @@ def _measure_text(font, text: str) -> tuple[int, int]:
     return bbox[2] - bbox[0], bbox[3] - bbox[1]
 
 
-def _wrap_text(text: str, font, max_width: int) -> list[str]:
+def _wrap_text(text: str, font, max_width: int, max_lines: int) -> list[str]:
     w, _ = _measure_text(font, text)
     if w <= max_width:
         return [text]
@@ -36,22 +34,32 @@ def _wrap_text(text: str, font, max_width: int) -> list[str]:
         tw, _ = _measure_text(font, trial)
         if tw > max_width and current:
             lines.append(current)
-            if len(lines) >= _MAX_LINES:
+            if len(lines) >= max_lines:
                 break
             current = char
         else:
             current = trial
     else:
-        if current and len(lines) < _MAX_LINES:
+        if current and len(lines) < max_lines:
             lines.append(current)
 
-    if len(lines) == _MAX_LINES and current and current not in lines[-1]:
+    if len(lines) == max_lines and current and current not in lines[-1]:
         last = lines[-1]
         while last and _measure_text(font, last + "…")[0] > max_width:
             last = last[:-1]
         lines[-1] = last + "…"
 
     return lines or [text]
+
+
+def _fix_kinsoku(lines: list[str]) -> list[str]:
+    """把行首的标点挪到上一行末尾（避头点）。"""
+    result = list(lines)
+    for i in range(1, len(result)):
+        while result[i] and result[i][0] in _CANT_START_LINE:
+            result[i - 1] += result[i][0]
+            result[i] = result[i][1:]
+    return [ln for ln in result if ln]
 
 
 def _calc_position(
@@ -79,8 +87,11 @@ def render_wallpaper(background: Path, quote: str, cfg: Config) -> Path:
     img = Image.open(background).convert("RGBA")
     img_w, img_h = img.size
 
-    lines = _wrap_text(quote, font, int(img_w * _WRAP_WIDTH_RATIO))
-    line_h = int(cfg.font_size * _LINE_SPACING_RATIO)
+    line_h = int(cfg.font_size * cfg.line_spacing)
+    max_lines = max(1, (img_h - 2 * cfg.text_padding) // line_h)
+    raw_lines = _wrap_text(quote, font, int(img_w * cfg.text_width_ratio), max_lines)
+    lines = _fix_kinsoku(raw_lines)
+
     text_h = line_h * len(lines)
     text_w = max(_measure_text(font, ln)[0] for ln in lines)
 
