@@ -5,7 +5,9 @@ build/
 dist/
 wheels/
 *.egg-info
-*.spec
 
 # Virtual environments
 .venv
+
+# 安装包二进制（保留 .iss 脚本和图标）
+setup/*.exe
