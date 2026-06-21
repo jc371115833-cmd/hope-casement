@@ -64,7 +64,7 @@ src/hopecasement/
 | 配置 | `%APPDATA%\HopeCasement\config.json` |
 | 句子库 | `%APPDATA%\HopeCasement\quotes.txt` |
 | 用户背景图 | `%APPDATA%\HopeCasement\backgrounds\` |
-| 渲染临时文件 | `%TEMP%\hopecasement_wallpaper.png` |
+| 渲染输出文件 | `%APPDATA%\HopeCasement\current_wallpaper.png` |
 | 内置背景图 | exe 同目录 `assets/images/` |
 
 ## 入口逻辑

@@ -7,7 +7,6 @@ from hopecasement.config import Config
 
 _POSITIONS = ["top_left", "top_center", "center", "bottom_center", "bottom_right"]
 _POSITION_LABELS = ["左上", "顶中", "居中", "底中", "右下"]
-_MODES = ["manual", "startup", "interval", "daily"]
 
 
 class ScheduleTab(ctk.CTkFrame):
@@ -81,36 +80,38 @@ class ScheduleTab(ctk.CTkFrame):
         row += 1
 
         # --- 换壁纸计划 ---
-        ctk.CTkLabel(scroll, text="换壁纸计划", font=ctk.CTkFont(weight="bold")).grid(
-            row=row, column=0, columnspan=2, sticky="w", padx=4, pady=(8, 2))
+        header_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        header_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=(8, 2))
+        ctk.CTkLabel(header_frame, text="换壁纸计划", font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkLabel(header_frame, text="  （可多选，不勾选则手动）",
+                     text_color="gray", font=ctk.CTkFont(size=12)).pack(side="left")
         row += 1
 
-        self._mode_var = ctk.StringVar(value="manual")
-
-        def radio(text, mode, r):
-            ctk.CTkRadioButton(scroll, text=text, variable=self._mode_var,
-                                value=mode, command=self._on_mode_change
-                                ).grid(row=r, column=0, columnspan=2, sticky="w", padx=4, pady=4)
-
-        radio("手动（不自动切换）", "manual", row); row += 1
-        radio("开机时换", "startup", row); row += 1
+        self._startup_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(scroll, text="开机时换", variable=self._startup_var).grid(
+            row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
+        row += 1
 
         # interval row
+        self._interval_var = ctk.BooleanVar(value=False)
         interval_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         interval_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
-        ctk.CTkRadioButton(interval_frame, text="每", variable=self._mode_var,
-                           value="interval", command=self._on_mode_change).pack(side="left")
-        self._interval_entry = ctk.CTkEntry(interval_frame, width=48, justify="center")
-        self._interval_entry.insert(0, "3")
-        self._interval_entry.pack(side="left", padx=4)
-        ctk.CTkLabel(interval_frame, text="小时换一次").pack(side="left")
+        ctk.CTkCheckBox(interval_frame, text="每", variable=self._interval_var).pack(side="left")
+        self._interval_hours_entry = ctk.CTkEntry(interval_frame, width=40, justify="center")
+        self._interval_hours_entry.insert(0, "3")
+        self._interval_hours_entry.pack(side="left", padx=(4, 0))
+        ctk.CTkLabel(interval_frame, text="小时").pack(side="left", padx=(2, 4))
+        self._interval_minutes_entry = ctk.CTkEntry(interval_frame, width=40, justify="center")
+        self._interval_minutes_entry.insert(0, "0")
+        self._interval_minutes_entry.pack(side="left", padx=(0, 0))
+        ctk.CTkLabel(interval_frame, text="分钟换一次").pack(side="left", padx=(2, 0))
         row += 1
 
         # daily row
+        self._daily_var = ctk.BooleanVar(value=False)
         daily_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         daily_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
-        ctk.CTkRadioButton(daily_frame, text="每天", variable=self._mode_var,
-                           value="daily", command=self._on_mode_change).pack(side="left")
+        ctk.CTkCheckBox(daily_frame, text="每天", variable=self._daily_var).pack(side="left")
         self._daily_entry = ctk.CTkEntry(daily_frame, width=72, justify="center")
         self._daily_entry.insert(0, "08:00")
         self._daily_entry.pack(side="left", padx=4)
@@ -119,9 +120,6 @@ class ScheduleTab(ctk.CTkFrame):
     def _on_position_change(self, label: str):
         idx = _POSITION_LABELS.index(label)
         self._position_var.set(_POSITIONS[idx])
-
-    def _on_mode_change(self):
-        pass  # mode_var already updated by radio button
 
     def _pick_font_color(self):
         color = cc.askcolor(color=self._font_color_var.get(), title="文字颜色")[1]
@@ -142,20 +140,32 @@ class ScheduleTab(ctk.CTkFrame):
         self._shadow_offset_label.configure(text=str(cfg.shadow_offset))
         if cfg.text_position in _POSITIONS:
             self._position_var.set(cfg.text_position)
-        self._mode_var.set(cfg.schedule_mode)
-        self._interval_entry.delete(0, "end")
-        self._interval_entry.insert(0, str(cfg.interval_hours))
+        self._startup_var.set("startup" in cfg.schedule_modes)
+        self._interval_var.set("interval" in cfg.schedule_modes)
+        self._daily_var.set("daily" in cfg.schedule_modes)
+        self._interval_hours_entry.delete(0, "end")
+        self._interval_hours_entry.insert(0, str(cfg.interval_hours))
+        self._interval_minutes_entry.delete(0, "end")
+        self._interval_minutes_entry.insert(0, str(cfg.interval_minutes))
         self._daily_entry.delete(0, "end")
         self._daily_entry.insert(0, cfg.daily_time)
 
     def get_config_values(self) -> dict:
+        modes = []
+        if self._startup_var.get():
+            modes.append("startup")
+        if self._interval_var.get():
+            modes.append("interval")
+        if self._daily_var.get():
+            modes.append("daily")
         return {
             "font_size": int(self._font_size_var.get()),
             "font_color": self._font_color_var.get(),
             "shadow_color": self._shadow_color_var.get(),
             "shadow_offset": int(self._shadow_offset_var.get()),
             "text_position": self._position_var.get(),
-            "schedule_mode": self._mode_var.get(),
-            "interval_hours": max(1, int(self._interval_entry.get() or 3)),
+            "schedule_modes": modes,
+            "interval_hours": max(0, int(self._interval_hours_entry.get() or 0)),
+            "interval_minutes": max(0, min(59, int(self._interval_minutes_entry.get() or 0))),
             "daily_time": self._daily_entry.get() or "08:00",
         }

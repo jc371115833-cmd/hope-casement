@@ -1,10 +1,8 @@
-import os
-import tempfile
 from pathlib import Path
 
 from PIL import Image, ImageColor, ImageDraw, ImageFont
 
-from hopecasement.config import Config
+from hopecasement.config import Config, get_appdata_dir
 
 _FONT_CANDIDATES = ["msyh.ttc", "msyhbd.ttc", "simhei.ttf", "simsun.ttc"]
 _FONTS_DIR = Path("C:/Windows/Fonts")
@@ -103,6 +101,6 @@ def render_wallpaper(background: Path, quote: str, cfg: Config) -> Path:
 
     result = Image.alpha_composite(img, overlay).convert("RGB")
 
-    tmp = Path(tempfile.gettempdir()) / "hopecasement_wallpaper.png"
-    result.save(str(tmp), "PNG")
-    return tmp
+    out = get_appdata_dir() / "current_wallpaper.png"
+    result.save(str(out), "PNG")
+    return out

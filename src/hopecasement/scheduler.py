@@ -39,28 +39,31 @@ def apply_schedule(cfg: Config) -> None:
     action = f'"{exe}" --change'
     clear_all_tasks()
 
-    if cfg.schedule_mode == "startup":
-        _schtasks(
-            "/create", "/f",
-            "/tn", _TASK_STARTUP,
-            "/tr", action,
-            "/sc", "ONLOGON",
-            "/delay", "0000:30",
-        )
-    elif cfg.schedule_mode == "interval":
-        _schtasks(
-            "/create", "/f",
-            "/tn", _TASK_INTERVAL,
-            "/tr", action,
-            "/sc", "HOURLY",
-            "/mo", str(cfg.interval_hours),
-        )
-    elif cfg.schedule_mode == "daily":
-        _schtasks(
-            "/create", "/f",
-            "/tn", _TASK_DAILY,
-            "/tr", action,
-            "/sc", "DAILY",
-            "/st", cfg.daily_time,
-        )
-    # manual: tasks already cleared, nothing to register
+    for mode in cfg.schedule_modes:
+        if mode == "startup":
+            _schtasks(
+                "/create", "/f",
+                "/tn", _TASK_STARTUP,
+                "/tr", action,
+                "/sc", "ONLOGON",
+                "/delay", "0000:30",
+            )
+        elif mode == "interval":
+            total_minutes = cfg.interval_hours * 60 + cfg.interval_minutes
+            if total_minutes < 1:
+                total_minutes = 60
+            _schtasks(
+                "/create", "/f",
+                "/tn", _TASK_INTERVAL,
+                "/tr", action,
+                "/sc", "MINUTE",
+                "/mo", str(total_minutes),
+            )
+        elif mode == "daily":
+            _schtasks(
+                "/create", "/f",
+                "/tn", _TASK_DAILY,
+                "/tr", action,
+                "/sc", "DAILY",
+                "/st", cfg.daily_time,
+            )

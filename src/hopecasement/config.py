@@ -12,8 +12,9 @@ class Config:
     shadow_offset: int = 2
     text_position: str = "bottom_center"
     text_padding: int = 80
-    schedule_mode: str = "manual"
+    schedule_modes: list = field(default_factory=list)  # empty = manual; values: "startup","interval","daily"
     interval_hours: int = 3
+    interval_minutes: int = 0
     daily_time: str = "08:00"
 
 
@@ -37,6 +38,12 @@ def load_config() -> Config:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return Config()
+    # Migrate legacy schedule_mode field
+    if "schedule_mode" in data and "schedule_modes" not in data:
+        old_mode = data.pop("schedule_mode")
+        data["schedule_modes"] = [] if old_mode == "manual" else [old_mode]
+    else:
+        data.pop("schedule_mode", None)
     defaults = asdict(Config())
     defaults.update({k: v for k, v in data.items() if k in defaults})
     return Config(**defaults)
