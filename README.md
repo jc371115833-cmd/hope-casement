@@ -46,10 +46,10 @@ uv run pyinstaller HopeCasement.spec --clean
 需要先完成上一步打包 exe，再用 [Inno Setup 7](https://jrsoftware.org/isinfo.php) 编译：
 
 ```shell
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup\Hopecasement.iss
+"E:\software\Inno Setup 7\ISCC.exe" setup\Hopecasement.iss
 ```
 
-> 若安装路径不同，替换上面的 ISCC.exe 路径即可。
+> 若 Inno Setup 安装路径不同，替换上面的 ISCC.exe 路径即可。
 
 产物在 `setup\HopeCasement.exe`。
 
