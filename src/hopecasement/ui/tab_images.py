@@ -9,6 +9,7 @@ from PIL import Image
 
 from hopecasement.config import Config
 from hopecasement.image import SUPPORTED_IMAGE_EXTENSIONS, get_user_images_dir, scan_user_images
+from hopecasement.ui.utils import normalize_hex_color
 
 _SWATCH_W, _SWATCH_H = 116, 72
 _THUMB_W, _THUMB_H = 116, 72
@@ -54,15 +55,32 @@ class _ColorPickerDialog(ctk.CTkToplevel):
             ).pack()
             ctk.CTkLabel(cell, text=name, font=ctk.CTkFont(size=10)).pack()
 
+        hex_row = ctk.CTkFrame(self, fg_color="transparent")
+        hex_row.pack(padx=20, pady=(10, 4))
+        ctk.CTkLabel(hex_row, text="十六进制：").pack(side="left")
+        self._hex_entry = ctk.CTkEntry(hex_row, width=100, placeholder_text="#RRGGBB")
+        self._hex_entry.pack(side="left", padx=(4, 6))
+        ctk.CTkButton(hex_row, text="添加", width=56,
+                      command=self._add_hex).pack(side="left")
+
         ctk.CTkButton(
             self, text="自定义颜色…", width=160,
-            fg_color="gray35", hover_color="gray25",
+            fg_color="#EEEDE9", hover_color="#E4E3DE", text_color="#37352F",
             command=self._custom,
-        ).pack(padx=20, pady=(8, 16))
+        ).pack(padx=20, pady=(6, 16))
 
     def _select(self, color: str) -> None:
         self._on_pick(color.upper())
         self.destroy()
+
+    def _add_hex(self) -> None:
+        color = normalize_hex_color(self._hex_entry.get())
+        if color:
+            self._on_pick(color)
+            self.destroy()
+        else:
+            self._hex_entry.delete(0, "end")
+            self._hex_entry.configure(placeholder_text="格式错误")
 
     def _custom(self) -> None:
         self.grab_release()
@@ -82,15 +100,8 @@ class ImagesTab(ctk.CTkFrame):
 
     def _build(self):
         scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        scroll.pack(fill="both", expand=True, padx=8, pady=(8, 4))
+        scroll.pack(fill="both", expand=True, padx=8, pady=8)
         self._scroll = scroll
-
-        btn_row = ctk.CTkFrame(self, fg_color="transparent")
-        btn_row.pack(fill="x", padx=8, pady=(0, 8))
-        ctk.CTkButton(btn_row, text="添加颜色…", width=120,
-                      command=self._add_color).pack(side="left", padx=(0, 8))
-        ctk.CTkButton(btn_row, text="添加图片…", width=120,
-                      command=self._add_image).pack(side="left")
 
     def load_config(self, cfg: Config) -> None:
         self._colors = list(cfg.background_colors)
@@ -105,9 +116,12 @@ class ImagesTab(ctk.CTkFrame):
         self._thumbs.clear()
 
         # ── 背景颜色 ────────────────────────────────────────
-        ctk.CTkLabel(self._scroll, text="背景颜色",
-                     font=ctk.CTkFont(weight="bold"), anchor="w").pack(
-            fill="x", padx=4, pady=(4, 2))
+        color_header = ctk.CTkFrame(self._scroll, fg_color="transparent")
+        color_header.pack(fill="x", padx=4, pady=(4, 2))
+        ctk.CTkLabel(color_header, text="背景颜色",
+                     font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkButton(color_header, text="添加颜色", width=75, height=26,
+                      command=self._add_color).pack(side="left", padx=(12, 0))
 
         color_grid = ctk.CTkFrame(self._scroll, fg_color="transparent")
         color_grid.pack(fill="x", padx=4)
@@ -119,9 +133,12 @@ class ImagesTab(ctk.CTkFrame):
             self._make_swatch(cell, color)
 
         # ── 背景图片 ────────────────────────────────────────
-        ctk.CTkLabel(self._scroll, text="背景图片",
-                     font=ctk.CTkFont(weight="bold"), anchor="w").pack(
-            fill="x", padx=4, pady=(12, 2))
+        image_header = ctk.CTkFrame(self._scroll, fg_color="transparent")
+        image_header.pack(fill="x", padx=4, pady=(12, 2))
+        ctk.CTkLabel(image_header, text="背景图片",
+                     font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkButton(image_header, text="添加图片", width=75, height=26,
+                      command=self._add_image).pack(side="left", padx=(12, 0))
 
         image_grid = ctk.CTkFrame(self._scroll, fg_color="transparent")
         image_grid.pack(fill="x", padx=4)
@@ -141,7 +158,7 @@ class ImagesTab(ctk.CTkFrame):
                       font=ctk.CTkFont(size=11)).place(relx=0.5, rely=0.5, anchor="center")
         ctk.CTkButton(
             cell, text="删除", width=80, height=22,
-            fg_color="gray40", hover_color="gray30", font=ctk.CTkFont(size=11),
+            fg_color="#EEEDE9", hover_color="#E4E3DE", text_color="#37352F", font=ctk.CTkFont(size=11),
             command=lambda c=color: self._delete_color(c),
         ).pack(pady=(3, 0))
 
@@ -159,7 +176,7 @@ class ImagesTab(ctk.CTkFrame):
                       wraplength=_THUMB_W).pack()
         ctk.CTkButton(
             cell, text="删除", width=80, height=22,
-            fg_color="gray40", hover_color="gray30", font=ctk.CTkFont(size=11),
+            fg_color="#EEEDE9", hover_color="#E4E3DE", text_color="#37352F", font=ctk.CTkFont(size=11),
             command=lambda p=path: self._delete_image(p),
         ).pack(pady=(3, 0))
 

@@ -21,9 +21,9 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-OutputDir=E:\my_workspace\HopeCasement\setup
+OutputDir={#SourcePath}
 OutputBaseFilename=HopeCasement
-SetupIconFile=E:\my_workspace\HopeCasement\setup\hopecasement.ico
+SetupIconFile={#SourcePath}\hopecasement.ico
 SolidCompression=yes
 WizardStyle=modern
 
@@ -35,7 +35,7 @@ Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.i
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "E:\my_workspace\HopeCasement\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourcePath}\..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

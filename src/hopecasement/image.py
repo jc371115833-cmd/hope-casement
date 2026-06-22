@@ -17,7 +17,7 @@ def scan_user_images() -> list[Path]:
     return [f for f in d.iterdir() if f.suffix.lower() in SUPPORTED_IMAGE_EXTENSIONS]
 
 
-def get_background(bg_colors: list[str]) -> "Path | str":
+def get_background(bg_colors: list[str]) -> Path | str:
     """Return a random background: a hex color string or a user image Path."""
     pool: list = list(bg_colors) + scan_user_images()
     if not pool:

@@ -1,4 +1,5 @@
 import ctypes
+import os
 from pathlib import Path
 
 from PIL import Image, ImageColor, ImageDraw, ImageFont
@@ -6,7 +7,7 @@ from PIL import Image, ImageColor, ImageDraw, ImageFont
 from hopecasement.config import Config, get_appdata_dir
 
 _FONT_CANDIDATES = ["msyh.ttc", "msyhbd.ttc", "simhei.ttf", "simsun.ttc"]
-_FONTS_DIR = Path("C:/Windows/Fonts")
+_FONTS_DIR = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
 _CANT_START_LINE = frozenset('，。、；：！？）】」』》〉…·—')
 
 
@@ -75,22 +76,18 @@ def _calc_position(
     img_h: int,
     text_w: int,
     text_h: int,
-    position: str,
-    padding: int,
+    text_x: int,
+    text_y: int,
 ) -> tuple[int, int]:
-    cx = (img_w - text_w) // 2
-    cy = (img_h - text_h) // 2
-    positions = {
-        "top_left":      (padding, padding),
-        "top_center":    (cx, padding),
-        "center":        (cx, cy),
-        "bottom_center": (cx, img_h - text_h - padding),
-        "bottom_right":  (img_w - text_w - padding, img_h - text_h - padding),
-    }
-    return positions.get(position, positions["bottom_center"])
+    margin = 20
+    x = int(img_w * text_x / 100) - text_w // 2
+    y = int(img_h * text_y / 100) - text_h // 2
+    x = max(margin, min(img_w - text_w - margin, x))
+    y = max(margin, min(img_h - text_h - margin, y))
+    return x, y
 
 
-def render_wallpaper(background: "Path | str", quote: str, cfg: Config) -> Path:
+def render_wallpaper(background: Path | str, quote: str, cfg: Config) -> Path:
     if isinstance(background, str):
         w, h = _screen_size()
         rgb = ImageColor.getrgb(background)
@@ -102,29 +99,30 @@ def render_wallpaper(background: "Path | str", quote: str, cfg: Config) -> Path:
     font_size_px = max(12, int(img_h * cfg.font_size / 100))
     font = _load_font(font_size_px)
     line_h = int(font_size_px * cfg.line_spacing)
-    max_lines = max(1, (img_h - 2 * cfg.text_padding) // line_h)
+    max_lines = max(1, (img_h - 80) // line_h)
     raw_lines = _wrap_text(quote, font, int(img_w * cfg.text_width_ratio), max_lines)
     lines = _fix_kinsoku(raw_lines)
 
     text_h = line_h * len(lines)
     text_w = max(_measure_text(font, ln)[0] for ln in lines)
 
-    x, y = _calc_position(img_w, img_h, text_w, text_h, cfg.text_position, cfg.text_padding)
+    x, y = _calc_position(img_w, img_h, text_w, text_h, cfg.text_x, cfg.text_y)
 
-    text_rgb = ImageColor.getrgb(cfg.font_color)
-    shadow_rgb = ImageColor.getrgb(cfg.shadow_color)
+    result_img = img
+    if cfg.show_text:
+        text_rgb = ImageColor.getrgb(cfg.font_color)
+        shadow_rgb = ImageColor.getrgb(cfg.shadow_color)
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        for i, line in enumerate(lines):
+            lx = x
+            ly = y + i * line_h
+            draw.text((lx + cfg.shadow_offset, ly + cfg.shadow_offset), line,
+                      font=font, fill=(*shadow_rgb, 180))
+            draw.text((lx, ly), line, font=font, fill=(*text_rgb, 255))
+        result_img = Image.alpha_composite(img, overlay)
 
-    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-
-    for i, line in enumerate(lines):
-        lx = x
-        ly = y + i * line_h
-        draw.text((lx + cfg.shadow_offset, ly + cfg.shadow_offset), line,
-                  font=font, fill=(*shadow_rgb, 180))
-        draw.text((lx, ly), line, font=font, fill=(*text_rgb, 255))
-
-    result = Image.alpha_composite(img, overlay).convert("RGB")
+    result = result_img.convert("RGB")
 
     out = get_appdata_dir() / "current_wallpaper.png"
     result.save(str(out), "PNG")

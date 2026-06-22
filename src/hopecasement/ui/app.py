@@ -1,29 +1,43 @@
 import tkinter.messagebox as mb
 from dataclasses import asdict
+from pathlib import Path
 
 import customtkinter as ctk
 
+from hopecasement import __version__
 from hopecasement.config import Config, load_config, save_config
 from hopecasement.ui.tab_images import ImagesTab
 from hopecasement.ui.tab_quotes import QuotesTab
 from hopecasement.ui.tab_schedule import ScheduleTab
 
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
-
-_VERSION = "0.1.0"
+ctk.set_appearance_mode("light")
+ctk.set_default_color_theme(str(Path(__file__).parent / "theme.json"))
 _WIN_W, _WIN_H = 680, 560
 
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title(f"来日窗笺  v{_VERSION}")
+        self.title(f"来日窗笺  v{__version__}")
         self.geometry(f"{_WIN_W}x{_WIN_H}")
-        self.resizable(False, False)
+        self.resizable(True, True)
         self._cfg = load_config()
         self._build()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.after(0, self._apply_titlebar_color)
+
+    def _apply_titlebar_color(self) -> None:
+        try:
+            import ctypes
+            hwnd = self.winfo_id()
+            # Ensure light-mode title bar icons (black text/icons)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, 20, ctypes.byref(ctypes.c_int(0)), 4)
+            # Set caption background to match window bg: #F7F6F3 → COLORREF 0x00F3F6F7
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, 35, ctypes.byref(ctypes.c_int(0x00F3F6F7)), 4)
+        except Exception:
+            pass
 
     def _build(self):
         header = ctk.CTkLabel(
@@ -84,11 +98,9 @@ class App(ctk.CTk):
     def _change_now(self):
         self._tab_quotes.save()
         cfg = self._collect_config()
-        save_config(cfg)
-        self._cfg = cfg
         try:
             from hopecasement.changer import change_wallpaper
-            change_wallpaper()
+            change_wallpaper(cfg)
         except FileNotFoundError as e:
             mb.showwarning("没有背景图", str(e))
         except Exception as e:

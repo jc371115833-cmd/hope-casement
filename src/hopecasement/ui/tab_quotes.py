@@ -2,7 +2,7 @@ import tkinter.filedialog as fd
 
 import customtkinter as ctk
 
-from hopecasement.quotes import _DEFAULT_QUOTES, load_quotes, save_quotes
+from hopecasement.quotes import DEFAULT_QUOTES, load_quotes, save_quotes
 
 
 class QuotesTab(ctk.CTkFrame):
@@ -19,8 +19,8 @@ class QuotesTab(ctk.CTkFrame):
         btn_row.pack(fill="x", padx=8, pady=(0, 8))
 
         ctk.CTkButton(btn_row, text="导入 .txt 文件", width=140, command=self._import).pack(side="left", padx=(0, 8))
-        ctk.CTkButton(btn_row, text="恢复默认句子", width=140, fg_color="gray40",
-                      hover_color="gray30", command=self._restore).pack(side="left")
+        ctk.CTkButton(btn_row, text="恢复默认句子", width=140, fg_color="#EEEDE9", hover_color="#E4E3DE", text_color="#37352F",
+                      command=self._restore).pack(side="left")
 
     def _load(self):
         self._baseline = load_quotes()
@@ -40,7 +40,7 @@ class QuotesTab(ctk.CTkFrame):
 
     def _restore(self):
         self.textbox.delete("1.0", "end")
-        self.textbox.insert("1.0", "\n".join(_DEFAULT_QUOTES))
+        self.textbox.insert("1.0", "\n".join(DEFAULT_QUOTES))
 
     def has_changes(self) -> bool:
         current = [ln.strip() for ln in self.textbox.get("1.0", "end").splitlines() if ln.strip()]

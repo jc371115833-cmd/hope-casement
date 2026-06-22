@@ -1,15 +1,14 @@
+import re
 import tkinter.colorchooser as cc
 
 import customtkinter as ctk
 
 from hopecasement.config import Config
+from hopecasement.ui.utils import normalize_hex_color
 
-_POSITIONS = ["top_left", "top_center", "center", "bottom_center", "bottom_right"]
-_POSITION_LABELS = ["左上", "顶中", "居中", "底中", "右下"]
-
-_FONT_SIZE_OPTIONS = ["2%", "3%", "4%", "5%", "6%", "7%", "8%", "10%", "12%", "15%"]
+_FONT_SIZE_OPTIONS    = ["2%", "3%", "4%", "5%", "6%", "7%", "8%", "10%", "12%", "15%"]
 _LINE_SPACING_OPTIONS = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.75", "2.0", "2.5", "3.0"]
-_TEXT_WIDTH_OPTIONS = ["40%", "50%", "60%", "65%", "70%", "75%", "80%", "85%", "90%", "95%", "100%"]
+_TEXT_WIDTH_OPTIONS   = ["40%", "50%", "60%", "65%", "70%", "75%", "80%", "85%", "90%", "95%", "100%"]
 
 
 def _parse_int(s: str, default: int) -> int:
@@ -19,12 +18,16 @@ def _parse_int(s: str, default: int) -> int:
         return default
 
 
-def _parse_font_size(s: str) -> int:
+def _fmt_float(v: float) -> str:
+    return f"{v:.2f}".rstrip("0").rstrip(".")
+
+
+def _parse_font_size(s: str) -> float:
     try:
-        v = int(s.strip().rstrip("%"))
-        return max(1, min(20, v))
+        v = float(s.strip().rstrip("%"))
+        return round(max(1.0, min(20.0, v)), 2)
     except ValueError:
-        return 4
+        return 4.0
 
 
 def _parse_line_spacing(s: str) -> float:
@@ -41,6 +44,13 @@ def _parse_text_width(s: str) -> int:
         return max(20, min(100, v))
     except ValueError:
         return 75
+
+
+def _parse_time(s: str) -> str:
+    s = s.strip()
+    if re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", s):
+        return s
+    return "08:00"
 
 
 class ScheduleTab(ctk.CTkFrame):
@@ -60,64 +70,108 @@ class ScheduleTab(ctk.CTkFrame):
                 row=r, column=0, sticky="w", padx=(4, 12), pady=6)
 
         # --- 文字样式 ---
-        ctk.CTkLabel(scroll, text="文字样式", font=ctk.CTkFont(weight="bold")).grid(
-            row=row, column=0, columnspan=2, sticky="w", padx=4, pady=(4, 2))
+        style_header = ctk.CTkFrame(scroll, fg_color="transparent")
+        style_header.grid(row=row, column=0, columnspan=2, sticky="ew", padx=4, pady=(4, 2))
+        ctk.CTkLabel(style_header, text="文字样式", font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkButton(style_header, text="恢复默认", width=72, height=24,
+                      fg_color="transparent", border_width=1,
+                      border_color="#B0AFA8", text_color="#37352F",
+                      hover_color="#EEEDE9", font=ctk.CTkFont(size=12),
+                      command=self._reset_text_style).pack(side="left", padx=(12, 0))
         row += 1
 
+        self._show_text_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(scroll, text="显示文字", variable=self._show_text_var,
+                        command=self._toggle_text_style).grid(
+            row=row, column=0, columnspan=2, sticky="w", padx=4, pady=(2, 4))
+        row += 1
+
+        # 字号 / 行间距 / 文本宽度 — 同一行
         trio = ctk.CTkFrame(scroll, fg_color="transparent")
         trio.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
         ctk.CTkLabel(trio, text="字号").pack(side="left", padx=(0, 4))
-        self._font_size_box = ctk.CTkComboBox(trio, values=_FONT_SIZE_OPTIONS, width=100)
+        self._font_size_box = ctk.CTkComboBox(trio, values=_FONT_SIZE_OPTIONS, width=90)
         self._font_size_box.set("4%")
         self._font_size_box.pack(side="left", padx=(0, 16))
         ctk.CTkLabel(trio, text="行间距").pack(side="left", padx=(0, 4))
-        self._line_spacing_box = ctk.CTkComboBox(trio, values=_LINE_SPACING_OPTIONS, width=100)
+        self._line_spacing_box = ctk.CTkComboBox(trio, values=_LINE_SPACING_OPTIONS, width=75)
         self._line_spacing_box.set("1.4")
         self._line_spacing_box.pack(side="left", padx=(0, 16))
         ctk.CTkLabel(trio, text="文本宽度").pack(side="left", padx=(0, 4))
-        self._text_width_box = ctk.CTkComboBox(trio, values=_TEXT_WIDTH_OPTIONS, width=100)
+        self._text_width_box = ctk.CTkComboBox(trio, values=_TEXT_WIDTH_OPTIONS, width=75)
         self._text_width_box.set("75%")
         self._text_width_box.pack(side="left")
+
+        self._font_size_box._entry.bind(
+            "<FocusOut>", lambda e: self._font_size_box.set(f"{_fmt_float(_parse_font_size(self._font_size_box.get()))}%"))
+        self._line_spacing_box._entry.bind(
+            "<FocusOut>", lambda e: self._line_spacing_box.set(_fmt_float(_parse_line_spacing(self._line_spacing_box.get()))))
+        self._text_width_box._entry.bind(
+            "<FocusOut>", lambda e: self._text_width_box.set(f"{_parse_text_width(self._text_width_box.get())}%"))
         row += 1
 
-        label("文字颜色", row)
-        self._font_color_var = ctk.StringVar(value="#FFFFFF")
-        self._font_color_btn = ctk.CTkButton(scroll, textvariable=self._font_color_var,
-                                              width=100, command=self._pick_font_color)
-        self._font_color_btn.grid(row=row, column=1, sticky="w", pady=6)
+        # 文字颜色 + 阴影颜色 — 同一行
+        color_row = ctk.CTkFrame(scroll, fg_color="transparent")
+        color_row.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
+
+        ctk.CTkLabel(color_row, text="文字颜色").pack(side="left", padx=(0, 6))
+        self._font_color_swatch = ctk.CTkFrame(
+            color_row, width=28, height=28, fg_color="#FFFFFF", corner_radius=4,
+            cursor="hand2")
+        self._font_color_swatch.pack(side="left", padx=(0, 4))
+        self._font_color_swatch.pack_propagate(False)
+        self._font_color_swatch.bind("<Button-1>", lambda e: self._pick_font_color())
+        self._font_color_entry = ctk.CTkEntry(color_row, width=88)
+        self._font_color_entry.insert(0, "#FFFFFF")
+        self._font_color_entry.pack(side="left", padx=(0, 24))
+
+        ctk.CTkLabel(color_row, text="阴影颜色").pack(side="left", padx=(0, 6))
+        self._shadow_color_swatch = ctk.CTkFrame(
+            color_row, width=28, height=28, fg_color="#000000", corner_radius=4,
+            cursor="hand2")
+        self._shadow_color_swatch.pack(side="left", padx=(0, 4))
+        self._shadow_color_swatch.pack_propagate(False)
+        self._shadow_color_swatch.bind("<Button-1>", lambda e: self._pick_shadow_color())
+        self._shadow_color_entry = ctk.CTkEntry(color_row, width=88)
+        self._shadow_color_entry.insert(0, "#000000")
+        self._shadow_color_entry.pack(side="left")
+
+        for entry, swatch in [
+            (self._font_color_entry, self._font_color_swatch),
+            (self._shadow_color_entry, self._shadow_color_swatch),
+        ]:
+            entry.bind("<FocusOut>", lambda e, en=entry, sw=swatch: self._apply_color(en, sw))
+            entry.bind("<Return>",   lambda e, en=entry, sw=swatch: self._apply_color(en, sw))
         row += 1
 
-        label("阴影颜色", row)
-        self._shadow_color_var = ctk.StringVar(value="#000000")
-        self._shadow_color_btn = ctk.CTkButton(scroll, textvariable=self._shadow_color_var,
-                                                width=100, command=self._pick_shadow_color)
-        self._shadow_color_btn.grid(row=row, column=1, sticky="w", pady=6)
-        row += 1
-
-        label("阴影偏移", row)
-        self._shadow_offset_var = ctk.IntVar(value=2)
-        shadow_row = ctk.CTkFrame(scroll, fg_color="transparent")
-        shadow_row.grid(row=row, column=1, sticky="ew", pady=6)
-        self._shadow_offset_label = ctk.CTkLabel(shadow_row, text="2", width=24)
-        self._shadow_offset_label.pack(side="right")
-        ctk.CTkSlider(shadow_row, from_=0, to=8, number_of_steps=8,
-                      variable=self._shadow_offset_var,
-                      command=lambda v: self._shadow_offset_label.configure(text=str(int(v)))
-                      ).pack(side="left", fill="x", expand=True)
-        row += 1
-
+        # 文字位置
         label("文字位置", row)
-        self._position_var = ctk.StringVar(value="bottom_center")
-        self._position_btn = ctk.CTkSegmentedButton(scroll, values=_POSITION_LABELS,
-                                                    command=self._on_position_change)
-        self._position_btn.grid(row=row, column=1, sticky="ew", pady=6)
+        pos_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        pos_frame.grid(row=row, column=1, sticky="w", pady=6)
+        ctk.CTkLabel(pos_frame, text="横").pack(side="left")
+        self._text_x_entry = ctk.CTkEntry(pos_frame, width=52, justify="center")
+        self._text_x_entry.insert(0, "50")
+        self._text_x_entry.pack(side="left", padx=(4, 2))
+        ctk.CTkLabel(pos_frame, text="%", text_color="gray").pack(side="left", padx=(0, 16))
+        ctk.CTkLabel(pos_frame, text="纵").pack(side="left")
+        self._text_y_entry = ctk.CTkEntry(pos_frame, width=52, justify="center")
+        self._text_y_entry.insert(0, "88")
+        self._text_y_entry.pack(side="left", padx=(4, 2))
+        ctk.CTkLabel(pos_frame, text="%  （0=左/顶，100=右/底）",
+                     text_color="gray", font=ctk.CTkFont(size=11)).pack(side="left")
         row += 1
+
+        self._text_style_widgets = [
+            self._font_size_box, self._line_spacing_box, self._text_width_box,
+            self._font_color_entry, self._shadow_color_entry,
+            self._text_x_entry, self._text_y_entry,
+        ]
 
         # --- 换壁纸计划 ---
         header_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         header_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=(8, 2))
         ctk.CTkLabel(header_frame, text="换壁纸计划", font=ctk.CTkFont(weight="bold")).pack(side="left")
-        ctk.CTkLabel(header_frame, text="  （可多选，不勾选则手动）",
+        ctk.CTkLabel(header_frame, text="  （可多选）",
                      text_color="gray", font=ctk.CTkFont(size=12)).pack(side="left")
         row += 1
 
@@ -126,7 +180,6 @@ class ScheduleTab(ctk.CTkFrame):
             row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
         row += 1
 
-        # interval row
         self._interval_var = ctk.BooleanVar(value=False)
         interval_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         interval_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
@@ -141,7 +194,6 @@ class ScheduleTab(ctk.CTkFrame):
         ctk.CTkLabel(interval_frame, text="分钟换一次").pack(side="left", padx=(2, 0))
         row += 1
 
-        # daily row
         self._daily_var = ctk.BooleanVar(value=False)
         daily_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         daily_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
@@ -150,32 +202,81 @@ class ScheduleTab(ctk.CTkFrame):
         self._daily_entry.insert(0, "08:00")
         self._daily_entry.pack(side="left", padx=4)
         ctk.CTkLabel(daily_frame, text="换一次").pack(side="left")
+        self._daily_entry.bind("<FocusOut>", lambda e: self._normalize_daily_entry())
 
-    def _on_position_change(self, label: str):
-        idx = _POSITION_LABELS.index(label)
-        self._position_var.set(_POSITIONS[idx])
+    def _normalize_daily_entry(self) -> None:
+        normalized = _parse_time(self._daily_entry.get())
+        self._daily_entry.delete(0, "end")
+        self._daily_entry.insert(0, normalized)
 
-    def _pick_font_color(self):
-        color = cc.askcolor(color=self._font_color_var.get(), title="文字颜色")[1]
+    def _toggle_text_style(self) -> None:
+        state = "normal" if self._show_text_var.get() else "disabled"
+        for w in self._text_style_widgets:
+            w.configure(state=state)
+
+    def _reset_text_style(self) -> None:
+        d = Config()
+        self._show_text_var.set(d.show_text)
+        self._font_size_box.set(f"{d.font_size}%")
+        self._line_spacing_box.set(f"{d.line_spacing:.2g}")
+        self._text_width_box.set(f"{int(d.text_width_ratio * 100)}%")
+        self._font_color_entry.delete(0, "end")
+        self._font_color_entry.insert(0, d.font_color)
+        self._font_color_swatch.configure(fg_color=d.font_color)
+        self._shadow_color_entry.delete(0, "end")
+        self._shadow_color_entry.insert(0, d.shadow_color)
+        self._shadow_color_swatch.configure(fg_color=d.shadow_color)
+        self._text_x_entry.delete(0, "end")
+        self._text_x_entry.insert(0, str(d.text_x))
+        self._text_y_entry.delete(0, "end")
+        self._text_y_entry.insert(0, str(d.text_y))
+        self._toggle_text_style()
+
+    def _apply_color(self, entry: ctk.CTkEntry, swatch: ctk.CTkFrame) -> None:
+        color = normalize_hex_color(entry.get())
         if color:
-            self._font_color_var.set(color.upper())
+            entry.delete(0, "end")
+            entry.insert(0, color)
+            swatch.configure(fg_color=color)
 
-    def _pick_shadow_color(self):
-        color = cc.askcolor(color=self._shadow_color_var.get(), title="阴影颜色")[1]
+    def _pick_font_color(self) -> None:
+        if not self._show_text_var.get():
+            return
+        current = normalize_hex_color(self._font_color_entry.get()) or "#FFFFFF"
+        color = cc.askcolor(color=current, title="文字颜色")[1]
         if color:
-            self._shadow_color_var.set(color.upper())
+            color = color.upper()
+            self._font_color_entry.delete(0, "end")
+            self._font_color_entry.insert(0, color)
+            self._font_color_swatch.configure(fg_color=color)
+
+    def _pick_shadow_color(self) -> None:
+        if not self._show_text_var.get():
+            return
+        current = normalize_hex_color(self._shadow_color_entry.get()) or "#000000"
+        color = cc.askcolor(color=current, title="阴影颜色")[1]
+        if color:
+            color = color.upper()
+            self._shadow_color_entry.delete(0, "end")
+            self._shadow_color_entry.insert(0, color)
+            self._shadow_color_swatch.configure(fg_color=color)
 
     def load_config(self, cfg: Config) -> None:
-        self._font_size_box.set(f"{cfg.font_size}%")
-        self._line_spacing_box.set(f"{cfg.line_spacing:.2g}")
+        self._show_text_var.set(cfg.show_text)
+        self._toggle_text_style()
+        self._font_size_box.set(f"{_fmt_float(cfg.font_size)}%")
+        self._line_spacing_box.set(_fmt_float(cfg.line_spacing))
         self._text_width_box.set(f"{int(cfg.text_width_ratio * 100)}%")
-        self._font_color_var.set(cfg.font_color)
-        self._shadow_color_var.set(cfg.shadow_color)
-        self._shadow_offset_var.set(cfg.shadow_offset)
-        self._shadow_offset_label.configure(text=str(cfg.shadow_offset))
-        if cfg.text_position in _POSITIONS:
-            self._position_var.set(cfg.text_position)
-            self._position_btn.set(_POSITION_LABELS[_POSITIONS.index(cfg.text_position)])
+        self._font_color_entry.delete(0, "end")
+        self._font_color_entry.insert(0, cfg.font_color)
+        self._font_color_swatch.configure(fg_color=cfg.font_color)
+        self._shadow_color_entry.delete(0, "end")
+        self._shadow_color_entry.insert(0, cfg.shadow_color)
+        self._shadow_color_swatch.configure(fg_color=cfg.shadow_color)
+        self._text_x_entry.delete(0, "end")
+        self._text_x_entry.insert(0, str(cfg.text_x))
+        self._text_y_entry.delete(0, "end")
+        self._text_y_entry.insert(0, str(cfg.text_y))
         self._startup_var.set("startup" in cfg.schedule_modes)
         self._interval_var.set("interval" in cfg.schedule_modes)
         self._daily_var.set("daily" in cfg.schedule_modes)
@@ -195,15 +296,16 @@ class ScheduleTab(ctk.CTkFrame):
         if self._daily_var.get():
             modes.append("daily")
         return {
-            "font_size": _parse_font_size(self._font_size_box.get()),  # % of image height
+            "show_text": self._show_text_var.get(),
+            "font_size": _parse_font_size(self._font_size_box.get()),
             "line_spacing": _parse_line_spacing(self._line_spacing_box.get()),
             "text_width_ratio": _parse_text_width(self._text_width_box.get()) / 100,
-            "font_color": self._font_color_var.get(),
-            "shadow_color": self._shadow_color_var.get(),
-            "shadow_offset": int(self._shadow_offset_var.get()),
-            "text_position": self._position_var.get(),
+            "font_color": normalize_hex_color(self._font_color_entry.get()) or "#FFFFFF",
+            "shadow_color": normalize_hex_color(self._shadow_color_entry.get()) or "#000000",
+            "text_x": max(0, min(100, _parse_int(self._text_x_entry.get(), 50))),
+            "text_y": max(0, min(100, _parse_int(self._text_y_entry.get(), 88))),
             "schedule_modes": modes,
             "interval_hours": max(0, _parse_int(self._interval_hours_entry.get(), 0)),
             "interval_minutes": max(0, min(59, _parse_int(self._interval_minutes_entry.get(), 0))),
-            "daily_time": self._daily_entry.get().strip() or "08:00",
+            "daily_time": _parse_time(self._daily_entry.get()),
         }
