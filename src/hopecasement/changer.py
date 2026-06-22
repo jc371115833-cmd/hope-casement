@@ -9,6 +9,6 @@ def change_wallpaper(cfg: Config | None = None) -> None:
     if cfg is None:
         cfg = load_config()
     quote = get_random_quote()
-    bg = get_background(cfg.background_colors)
+    bg = get_background(cfg.background_colors, cfg.images_dir)
     tmp = render_wallpaper(bg, quote, cfg)
     set_wallpaper(tmp)

@@ -10,12 +10,15 @@ class Config:
     font_color: str = "#FFFFFF"
     shadow_color: str = "#000000"
     shadow_offset: int = 3
+    text_bg_color: str = "#000000"
+    text_bg_opacity: int = 0  # 0–100, 0 = no background behind text
     show_text: bool = True
     text_x: int = 50  # horizontal center of text block, % of image width (0=left, 100=right)
     text_y: int = 88  # vertical center of text block, % of image height (0=top, 100=bottom)
     line_spacing: float = 1.4
     text_width_ratio: float = 0.75
     background_colors: list[str] = field(default_factory=lambda: ["#2D3033"])
+    images_dir: str = ""  # custom background folder; empty = appdata/backgrounds
     schedule_modes: list[str] = field(default_factory=list)  # empty = manual; values: "startup","interval","daily"
     interval_hours: int = 3
     interval_minutes: int = 0

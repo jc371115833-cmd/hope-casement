@@ -24,6 +24,16 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
+def _cover_resize(img: Image.Image, target_w: int, target_h: int) -> Image.Image:
+    """Scale to cover the target size (preserve aspect), then center-crop to it."""
+    iw, ih = img.size
+    scale = max(target_w / iw, target_h / ih)
+    img = img.resize((max(1, round(iw * scale)), max(1, round(ih * scale))), Image.LANCZOS)
+    left = (img.width - target_w) // 2
+    top = (img.height - target_h) // 2
+    return img.crop((left, top, left + target_w, top + target_h))
+
+
 def _measure_text(font, text: str) -> tuple[int, int]:
     bbox = font.getbbox(text)
     return bbox[2] - bbox[0], bbox[3] - bbox[1]
@@ -88,12 +98,14 @@ def _calc_position(
 
 
 def render_wallpaper(background: Path | str, quote: str, cfg: Config) -> Path:
+    screen_w, screen_h = _screen_size()
     if isinstance(background, str):
-        w, h = _screen_size()
         rgb = ImageColor.getrgb(background)
-        img = Image.new("RGBA", (w, h), (*rgb, 255))
+        img = Image.new("RGBA", (screen_w, screen_h), (*rgb, 255))
     else:
-        img = Image.open(background).convert("RGBA")
+        img = Image.open(background)
+        img.draft("RGB", (screen_w, screen_h))  # fast approximate downscale while decoding JPEG
+        img = _cover_resize(img.convert("RGBA"), screen_w, screen_h)
     img_w, img_h = img.size
 
     font_size_px = max(12, int(img_h * cfg.font_size / 100))
@@ -114,6 +126,16 @@ def render_wallpaper(background: Path | str, quote: str, cfg: Config) -> Path:
         shadow_rgb = ImageColor.getrgb(cfg.shadow_color)
         overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(overlay)
+        if cfg.text_bg_opacity > 0:
+            bg_rgb = ImageColor.getrgb(cfg.text_bg_color)
+            bg_alpha = round(255 * cfg.text_bg_opacity / 100)
+            pad_x = int(font_size_px * 0.5)
+            pad_y = int(font_size_px * 0.35)
+            draw.rounded_rectangle(
+                (x - pad_x, y - pad_y, x + text_w + pad_x, y + text_h + pad_y),
+                radius=int(font_size_px * 0.3),
+                fill=(*bg_rgb, bg_alpha),
+            )
         for i, line in enumerate(lines):
             lx = x
             ly = y + i * line_h

@@ -1,11 +1,18 @@
 import os
+import shutil
 import tkinter.colorchooser as cc
+import tkinter.filedialog as fd
 from collections.abc import Callable
+from pathlib import Path
 
 import customtkinter as ctk
 
 from hopecasement.config import Config
-from hopecasement.image import get_user_images_dir, scan_user_images
+from hopecasement.image import (
+    SUPPORTED_IMAGE_EXTENSIONS,
+    get_user_images_dir,
+    scan_user_images,
+)
 from hopecasement.ui.utils import normalize_hex_color
 
 _SWATCH_W, _SWATCH_H = 116, 72
@@ -91,6 +98,8 @@ class ImagesTab(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
         self._colors: list[str] = []
+        self._images_dir: str = ""
+        self._dir_mtime_seen: float = 0.0
         self._build()
 
     def _build(self):
@@ -100,10 +109,11 @@ class ImagesTab(ctk.CTkFrame):
 
     def load_config(self, cfg: Config) -> None:
         self._colors = list(cfg.background_colors)
+        self._images_dir = cfg.images_dir
         self._refresh()
 
     def get_config_values(self) -> dict:
-        return {"background_colors": list(self._colors)}
+        return {"background_colors": list(self._colors), "images_dir": self._images_dir}
 
     def _refresh(self) -> None:
         for w in self._scroll.winfo_children():
@@ -127,12 +137,17 @@ class ImagesTab(ctk.CTkFrame):
             self._make_swatch(cell, color)
 
         # ── 背景图片 ────────────────────────────────────────
-        images = scan_user_images()
-        folder = get_user_images_dir()
+        images = scan_user_images(self._images_dir)
+        folder = get_user_images_dir(self._images_dir)
+        self._dir_mtime_seen = self._dir_mtime()
         image_header = ctk.CTkFrame(self._scroll, fg_color="transparent")
         image_header.pack(fill="x", padx=4, pady=(12, 2))
         ctk.CTkLabel(image_header, text="图片背景",
                      font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkButton(image_header, text="添加图片", width=75, height=26,
+                      command=self._add_image).pack(side="left", padx=(12, 0))
+        ctk.CTkButton(image_header, text="更换文件夹", width=85, height=26,
+                      command=self._change_folder).pack(side="left", padx=(8, 0))
         ctk.CTkLabel(image_header, text=f"共 {len(images)} 张",
                      text_color="#9B9A97", font=ctk.CTkFont(size=12)).pack(side="right")
 
@@ -164,12 +179,46 @@ class ImagesTab(ctk.CTkFrame):
         ).pack(pady=(3, 0))
 
     def _open_folder(self) -> None:
-        folder = get_user_images_dir()
+        folder = get_user_images_dir(self._images_dir)
         folder.mkdir(parents=True, exist_ok=True)
         try:
             os.startfile(folder)
         except OSError:
             pass
+
+    def _add_image(self) -> None:
+        paths = fd.askopenfilenames(
+            title="选择背景图",
+            filetypes=[
+                ("图片文件", " ".join(f"*{e}" for e in SUPPORTED_IMAGE_EXTENSIONS)),
+                ("所有文件", "*.*"),
+            ],
+        )
+        if not paths:
+            return
+        dest = get_user_images_dir(self._images_dir)
+        dest.mkdir(parents=True, exist_ok=True)
+        for p in paths:
+            shutil.copy2(p, dest / Path(p).name)
+        self._refresh()
+
+    def _change_folder(self) -> None:
+        chosen = fd.askdirectory(title="选择图片文件夹")
+        if not chosen:
+            return
+        default = get_user_images_dir()
+        # An empty images_dir means "use the default folder"
+        self._images_dir = "" if Path(chosen) == default else chosen
+        self._refresh()
+
+    def _dir_mtime(self) -> float:
+        d = get_user_images_dir(self._images_dir)
+        return d.stat().st_mtime if d.exists() else 0.0
+
+    def poll_reload(self) -> None:
+        """Re-scan if the folder changed on disk (external add/remove)."""
+        if self._dir_mtime() != self._dir_mtime_seen:
+            self._refresh()
 
     def _add_color(self) -> None:
         def on_pick(color: str) -> None:

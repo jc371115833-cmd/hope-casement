@@ -16,12 +16,12 @@ _FALLBACK = "来日方长，以待岁月。"
 _BULLET_RE = re.compile(r"^[*\-+]\s+")
 
 
-def _quotes_path() -> Path:
+def quotes_path() -> Path:
     return get_appdata_dir() / "quotes.txt"
 
 
 def load_quotes() -> list[str]:
-    path = _quotes_path()
+    path = quotes_path()
     if not path.exists():
         save_quotes(DEFAULT_QUOTES)
         return list(DEFAULT_QUOTES)
@@ -37,7 +37,7 @@ def load_quotes() -> list[str]:
 
 
 def save_quotes(quotes: list[str]) -> None:
-    _quotes_path().write_text(
+    quotes_path().write_text(
         "\n".join(f"* {q}" for q in quotes), encoding="utf-8"
     )
 

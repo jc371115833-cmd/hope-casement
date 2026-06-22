@@ -6,7 +6,7 @@ from pathlib import Path
 
 import customtkinter as ctk
 
-from hopecasement.quotes import DEFAULT_QUOTES, load_quotes, save_quotes
+from hopecasement.quotes import DEFAULT_QUOTES, load_quotes, quotes_path, save_quotes
 
 _NUM_FG = "#9B9A97"
 _NUM_RE = re.compile(r"^\d+\.\s")
@@ -296,10 +296,21 @@ class QuotesTab(ctk.CTkFrame):
         self._reapply_tags()
         self._update_count()
 
+    def _disk_mtime(self) -> float:
+        p = quotes_path()
+        return p.stat().st_mtime if p.exists() else 0.0
+
     def _load(self) -> None:
         self._baseline = load_quotes()
         self._set_quotes(self._baseline)
         self._text.edit_reset()  # loaded content is the undo floor
+        self._disk_mtime_seen = self._disk_mtime()
+
+    def poll_reload(self) -> None:
+        """Reload from disk if the file changed externally and the UI has no unsaved edits."""
+        if self.has_changes() or self._disk_mtime() == self._disk_mtime_seen:
+            return
+        self._load()
 
     def _import(self) -> None:
         path = fd.askopenfilename(
@@ -331,3 +342,4 @@ class QuotesTab(ctk.CTkFrame):
         quotes = self._get_quotes()
         save_quotes(quotes)
         self._baseline = quotes
+        self._disk_mtime_seen = self._disk_mtime()

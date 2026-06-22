@@ -25,6 +25,15 @@ class App(ctk.CTk):
         self._build()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.after(0, self._apply_titlebar_color)
+        self.after(2000, self._poll_external_changes)
+
+    def _poll_external_changes(self) -> None:
+        try:
+            self._tab_quotes.poll_reload()
+            self._tab_images.poll_reload()
+        except Exception:
+            pass
+        self.after(2000, self._poll_external_changes)
 
     def _apply_titlebar_color(self) -> None:
         try:

@@ -9,6 +9,14 @@ from hopecasement.ui.utils import normalize_hex_color
 _FONT_SIZE_OPTIONS    = ["2%", "3%", "4%", "5%", "6%", "7%", "8%", "10%", "12%", "15%"]
 _LINE_SPACING_OPTIONS = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.75", "2.0", "2.5", "3.0"]
 _TEXT_WIDTH_OPTIONS   = ["40%", "50%", "60%", "65%", "70%", "75%", "80%", "85%", "90%", "95%", "100%"]
+_OPACITY_OPTIONS      = ["0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"]
+
+
+def _parse_opacity(s: str) -> int:
+    try:
+        return max(0, min(100, int(s.strip().rstrip("%"))))
+    except ValueError:
+        return 0
 
 
 def _parse_int(s: str, default: int) -> int:
@@ -144,6 +152,31 @@ class ScheduleTab(ctk.CTkFrame):
             entry.bind("<Return>",   lambda e, en=entry, sw=swatch: self._apply_color(en, sw))
         row += 1
 
+        # 文字背景：衬底颜色 + 透明度 — 同一行
+        textbg_row = ctk.CTkFrame(scroll, fg_color="transparent")
+        textbg_row.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
+        ctk.CTkLabel(textbg_row, text="文字背景").pack(side="left", padx=(0, 6))
+        self._text_bg_color_swatch = ctk.CTkFrame(
+            textbg_row, width=28, height=28, fg_color="#000000", corner_radius=4,
+            cursor="hand2")
+        self._text_bg_color_swatch.pack(side="left", padx=(0, 4))
+        self._text_bg_color_swatch.pack_propagate(False)
+        self._text_bg_color_swatch.bind("<Button-1>", lambda e: self._pick_text_bg_color())
+        self._text_bg_color_entry = ctk.CTkEntry(textbg_row, width=88)
+        self._text_bg_color_entry.insert(0, "#000000")
+        self._text_bg_color_entry.pack(side="left", padx=(0, 24))
+        ctk.CTkLabel(textbg_row, text="透明度").pack(side="left", padx=(0, 6))
+        self._text_bg_opacity_box = ctk.CTkComboBox(textbg_row, values=_OPACITY_OPTIONS, width=75)
+        self._text_bg_opacity_box.set("0%")
+        self._text_bg_opacity_box.pack(side="left")
+        self._text_bg_opacity_box._entry.bind(
+            "<FocusOut>", lambda e: self._text_bg_opacity_box.set(f"{_parse_opacity(self._text_bg_opacity_box.get())}%"))
+        self._text_bg_color_entry.bind(
+            "<FocusOut>", lambda e: self._apply_color(self._text_bg_color_entry, self._text_bg_color_swatch))
+        self._text_bg_color_entry.bind(
+            "<Return>", lambda e: self._apply_color(self._text_bg_color_entry, self._text_bg_color_swatch))
+        row += 1
+
         # 文字位置
         label("文字位置", row)
         pos_frame = ctk.CTkFrame(scroll, fg_color="transparent")
@@ -164,6 +197,7 @@ class ScheduleTab(ctk.CTkFrame):
         self._text_style_widgets = [
             self._font_size_box, self._line_spacing_box, self._text_width_box,
             self._font_color_entry, self._shadow_color_entry,
+            self._text_bg_color_entry, self._text_bg_opacity_box,
             self._text_x_entry, self._text_y_entry,
         ]
 
@@ -226,6 +260,10 @@ class ScheduleTab(ctk.CTkFrame):
         self._shadow_color_entry.delete(0, "end")
         self._shadow_color_entry.insert(0, d.shadow_color)
         self._shadow_color_swatch.configure(fg_color=d.shadow_color)
+        self._text_bg_color_entry.delete(0, "end")
+        self._text_bg_color_entry.insert(0, d.text_bg_color)
+        self._text_bg_color_swatch.configure(fg_color=d.text_bg_color)
+        self._text_bg_opacity_box.set(f"{d.text_bg_opacity}%")
         self._text_x_entry.delete(0, "end")
         self._text_x_entry.insert(0, str(d.text_x))
         self._text_y_entry.delete(0, "end")
@@ -261,6 +299,17 @@ class ScheduleTab(ctk.CTkFrame):
             self._shadow_color_entry.insert(0, color)
             self._shadow_color_swatch.configure(fg_color=color)
 
+    def _pick_text_bg_color(self) -> None:
+        if not self._show_text_var.get():
+            return
+        current = normalize_hex_color(self._text_bg_color_entry.get()) or "#000000"
+        color = cc.askcolor(color=current, title="文字背景颜色")[1]
+        if color:
+            color = color.upper()
+            self._text_bg_color_entry.delete(0, "end")
+            self._text_bg_color_entry.insert(0, color)
+            self._text_bg_color_swatch.configure(fg_color=color)
+
     def load_config(self, cfg: Config) -> None:
         self._show_text_var.set(cfg.show_text)
         self._toggle_text_style()
@@ -273,6 +322,10 @@ class ScheduleTab(ctk.CTkFrame):
         self._shadow_color_entry.delete(0, "end")
         self._shadow_color_entry.insert(0, cfg.shadow_color)
         self._shadow_color_swatch.configure(fg_color=cfg.shadow_color)
+        self._text_bg_color_entry.delete(0, "end")
+        self._text_bg_color_entry.insert(0, cfg.text_bg_color)
+        self._text_bg_color_swatch.configure(fg_color=cfg.text_bg_color)
+        self._text_bg_opacity_box.set(f"{cfg.text_bg_opacity}%")
         self._text_x_entry.delete(0, "end")
         self._text_x_entry.insert(0, str(cfg.text_x))
         self._text_y_entry.delete(0, "end")
@@ -302,6 +355,8 @@ class ScheduleTab(ctk.CTkFrame):
             "text_width_ratio": _parse_text_width(self._text_width_box.get()) / 100,
             "font_color": normalize_hex_color(self._font_color_entry.get()) or "#FFFFFF",
             "shadow_color": normalize_hex_color(self._shadow_color_entry.get()) or "#000000",
+            "text_bg_color": normalize_hex_color(self._text_bg_color_entry.get()) or "#000000",
+            "text_bg_opacity": _parse_opacity(self._text_bg_opacity_box.get()),
             "text_x": max(0, min(100, _parse_int(self._text_x_entry.get(), 50))),
             "text_y": max(0, min(100, _parse_int(self._text_y_entry.get(), 88))),
             "schedule_modes": modes,
