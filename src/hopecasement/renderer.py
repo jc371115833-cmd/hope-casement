@@ -10,14 +10,32 @@ _FONT_CANDIDATES = ["msyh.ttc", "msyhbd.ttc", "simhei.ttf", "simsun.ttc"]
 _FONTS_DIR = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
 _CANT_START_LINE = frozenset('，。、；：！？）】」』》〉…·—')
 
+# Common Windows fonts: display name → font filename
+FONT_CHOICES: dict[str, str] = {
+    "微软雅黑": "msyh.ttc",
+    "黑体": "simhei.ttf",
+    "宋体": "simsun.ttc",
+    "楷体": "simkai.ttf",
+    "仿宋": "simfang.ttf",
+    "等线": "Deng.ttf",
+}
+DEFAULT_FONT_FILE = "msyh.ttc"
+
+
+def available_fonts() -> dict[str, str]:
+    """FONT_CHOICES limited to fonts actually installed on this machine."""
+    found = {name: f for name, f in FONT_CHOICES.items() if (_FONTS_DIR / f).exists()}
+    return found or dict(FONT_CHOICES)
+
 
 def _screen_size() -> tuple[int, int]:
     user32 = ctypes.windll.user32
     return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
 
-def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for name in _FONT_CANDIDATES:
+def _load_font(size: int, font_file: str = "") -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    candidates = ([font_file] if font_file else []) + _FONT_CANDIDATES
+    for name in candidates:
         path = _FONTS_DIR / name
         if path.exists():
             return ImageFont.truetype(str(path), size)
@@ -109,7 +127,7 @@ def render_wallpaper(background: Path | str, quote: str, cfg: Config) -> Path:
     img_w, img_h = img.size
 
     font_size_px = max(12, int(img_h * cfg.font_size / 100))
-    font = _load_font(font_size_px)
+    font = _load_font(font_size_px, cfg.font_file)
     line_h = int(font_size_px * cfg.line_spacing)
     max_lines = max(1, (img_h - 80) // line_h)
     raw_lines = _wrap_text(quote, font, int(img_w * cfg.text_width_ratio), max_lines)
@@ -129,11 +147,13 @@ def render_wallpaper(background: Path | str, quote: str, cfg: Config) -> Path:
         if cfg.text_bg_opacity > 0:
             bg_rgb = ImageColor.getrgb(cfg.text_bg_color)
             bg_alpha = round(255 * cfg.text_bg_opacity / 100)
-            pad_x = int(font_size_px * 0.5)
-            pad_y = int(font_size_px * 0.35)
+            ascent, descent = font.getmetrics()
+            content_h = (len(lines) - 1) * line_h + ascent + descent
+            pad_x = int(font_size_px * 0.3)
+            pad_y = int(font_size_px * 0.12)
             draw.rounded_rectangle(
-                (x - pad_x, y - pad_y, x + text_w + pad_x, y + text_h + pad_y),
-                radius=int(font_size_px * 0.3),
+                (x - pad_x, y - pad_y, x + text_w + pad_x, y + content_h + pad_y),
+                radius=int(font_size_px * 0.2),
                 fill=(*bg_rgb, bg_alpha),
             )
         for i, line in enumerate(lines):

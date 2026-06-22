@@ -4,7 +4,10 @@ import tkinter.colorchooser as cc
 import customtkinter as ctk
 
 from hopecasement.config import Config
+from hopecasement.renderer import DEFAULT_FONT_FILE, FONT_CHOICES, available_fonts
 from hopecasement.ui.utils import normalize_hex_color
+
+_FONT_NAME_BY_FILE = {f: name for name, f in FONT_CHOICES.items()}
 
 _FONT_SIZE_OPTIONS    = ["2%", "3%", "4%", "5%", "6%", "7%", "8%", "10%", "12%", "15%"]
 _LINE_SPACING_OPTIONS = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.75", "2.0", "2.5", "3.0"]
@@ -118,9 +121,15 @@ class ScheduleTab(ctk.CTkFrame):
             "<FocusOut>", lambda e: self._text_width_box.set(f"{_parse_text_width(self._text_width_box.get())}%"))
         row += 1
 
-        # 文字颜色 + 阴影颜色 — 同一行
+        # 字体 + 文字颜色 + 阴影颜色 — 同一行
         color_row = ctk.CTkFrame(scroll, fg_color="transparent")
         color_row.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
+
+        ctk.CTkLabel(color_row, text="字体").pack(side="left", padx=(0, 4))
+        self._font_box = ctk.CTkComboBox(
+            color_row, values=list(available_fonts().keys()), width=110, state="readonly")
+        self._font_box.set("微软雅黑")
+        self._font_box.pack(side="left", padx=(0, 20))
 
         ctk.CTkLabel(color_row, text="文字颜色").pack(side="left", padx=(0, 6))
         self._font_color_swatch = ctk.CTkFrame(
@@ -129,9 +138,9 @@ class ScheduleTab(ctk.CTkFrame):
         self._font_color_swatch.pack(side="left", padx=(0, 4))
         self._font_color_swatch.pack_propagate(False)
         self._font_color_swatch.bind("<Button-1>", lambda e: self._pick_font_color())
-        self._font_color_entry = ctk.CTkEntry(color_row, width=88)
+        self._font_color_entry = ctk.CTkEntry(color_row, width=84)
         self._font_color_entry.insert(0, "#FFFFFF")
-        self._font_color_entry.pack(side="left", padx=(0, 24))
+        self._font_color_entry.pack(side="left", padx=(0, 20))
 
         ctk.CTkLabel(color_row, text="阴影颜色").pack(side="left", padx=(0, 6))
         self._shadow_color_swatch = ctk.CTkFrame(
@@ -140,7 +149,7 @@ class ScheduleTab(ctk.CTkFrame):
         self._shadow_color_swatch.pack(side="left", padx=(0, 4))
         self._shadow_color_swatch.pack_propagate(False)
         self._shadow_color_swatch.bind("<Button-1>", lambda e: self._pick_shadow_color())
-        self._shadow_color_entry = ctk.CTkEntry(color_row, width=88)
+        self._shadow_color_entry = ctk.CTkEntry(color_row, width=84)
         self._shadow_color_entry.insert(0, "#000000")
         self._shadow_color_entry.pack(side="left")
 
@@ -165,9 +174,9 @@ class ScheduleTab(ctk.CTkFrame):
         self._text_bg_color_entry = ctk.CTkEntry(textbg_row, width=88)
         self._text_bg_color_entry.insert(0, "#000000")
         self._text_bg_color_entry.pack(side="left", padx=(0, 24))
-        ctk.CTkLabel(textbg_row, text="透明度").pack(side="left", padx=(0, 6))
+        ctk.CTkLabel(textbg_row, text="文字背景透明度").pack(side="left", padx=(0, 6))
         self._text_bg_opacity_box = ctk.CTkComboBox(textbg_row, values=_OPACITY_OPTIONS, width=75)
-        self._text_bg_opacity_box.set("0%")
+        self._text_bg_opacity_box.set("30%")
         self._text_bg_opacity_box.pack(side="left")
         self._text_bg_opacity_box._entry.bind(
             "<FocusOut>", lambda e: self._text_bg_opacity_box.set(f"{_parse_opacity(self._text_bg_opacity_box.get())}%"))
@@ -195,6 +204,7 @@ class ScheduleTab(ctk.CTkFrame):
         row += 1
 
         self._text_style_widgets = [
+            self._font_box,
             self._font_size_box, self._line_spacing_box, self._text_width_box,
             self._font_color_entry, self._shadow_color_entry,
             self._text_bg_color_entry, self._text_bg_opacity_box,
@@ -251,6 +261,7 @@ class ScheduleTab(ctk.CTkFrame):
     def _reset_text_style(self) -> None:
         d = Config()
         self._show_text_var.set(d.show_text)
+        self._font_box.set(_FONT_NAME_BY_FILE.get(d.font_file, "微软雅黑"))
         self._font_size_box.set(f"{d.font_size}%")
         self._line_spacing_box.set(f"{d.line_spacing:.2g}")
         self._text_width_box.set(f"{int(d.text_width_ratio * 100)}%")
@@ -313,6 +324,7 @@ class ScheduleTab(ctk.CTkFrame):
     def load_config(self, cfg: Config) -> None:
         self._show_text_var.set(cfg.show_text)
         self._toggle_text_style()
+        self._font_box.set(_FONT_NAME_BY_FILE.get(cfg.font_file, "微软雅黑"))
         self._font_size_box.set(f"{_fmt_float(cfg.font_size)}%")
         self._line_spacing_box.set(_fmt_float(cfg.line_spacing))
         self._text_width_box.set(f"{int(cfg.text_width_ratio * 100)}%")
@@ -350,6 +362,7 @@ class ScheduleTab(ctk.CTkFrame):
             modes.append("daily")
         return {
             "show_text": self._show_text_var.get(),
+            "font_file": FONT_CHOICES.get(self._font_box.get(), DEFAULT_FONT_FILE),
             "font_size": _parse_font_size(self._font_size_box.get()),
             "line_spacing": _parse_line_spacing(self._line_spacing_box.get()),
             "text_width_ratio": _parse_text_width(self._text_width_box.get()) / 100,

@@ -74,6 +74,8 @@ class App(ctk.CTk):
         self._tab_schedule.pack(fill="both", expand=True)
         self._tab_schedule.load_config(self._cfg)
 
+        tabs.set("换壁纸设置")
+
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.pack(fill="x", padx=16, pady=(0, 16))
 

@@ -7,11 +7,12 @@ from pathlib import Path
 @dataclass
 class Config:
     font_size: float = 4.0  # % of image height
+    font_file: str = "msyh.ttc"  # font filename under the Windows Fonts dir
     font_color: str = "#FFFFFF"
     shadow_color: str = "#000000"
     shadow_offset: int = 3
     text_bg_color: str = "#000000"
-    text_bg_opacity: int = 0  # 0–100, 0 = no background behind text
+    text_bg_opacity: int = 30  # 0–100, 0 = no background behind text
     show_text: bool = True
     text_x: int = 50  # horizontal center of text block, % of image width (0=left, 100=right)
     text_y: int = 88  # vertical center of text block, % of image height (0=top, 100=bottom)
