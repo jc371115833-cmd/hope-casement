@@ -23,8 +23,9 @@ class QuotesTab(ctk.CTkFrame):
                       hover_color="gray30", command=self._restore).pack(side="left")
 
     def _load(self):
+        self._baseline = load_quotes()
         self.textbox.delete("1.0", "end")
-        self.textbox.insert("1.0", "\n".join(load_quotes()))
+        self.textbox.insert("1.0", "\n".join(self._baseline))
 
     def _import(self):
         path = fd.askopenfilename(filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")])
@@ -41,6 +42,11 @@ class QuotesTab(ctk.CTkFrame):
         self.textbox.delete("1.0", "end")
         self.textbox.insert("1.0", "\n".join(_DEFAULT_QUOTES))
 
-    def save(self):
+    def has_changes(self) -> bool:
+        current = [ln.strip() for ln in self.textbox.get("1.0", "end").splitlines() if ln.strip()]
+        return current != self._baseline
+
+    def save(self) -> None:
         lines = [ln.strip() for ln in self.textbox.get("1.0", "end").splitlines() if ln.strip()]
         save_quotes(lines)
+        self._baseline = lines

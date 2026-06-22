@@ -23,6 +23,7 @@ class App(ctk.CTk):
         self.resizable(False, False)
         self._cfg = load_config()
         self._build()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build(self):
         header = ctk.CTkLabel(
@@ -92,6 +93,35 @@ class App(ctk.CTk):
             mb.showwarning("没有背景图", str(e))
         except Exception as e:
             mb.showerror("出错了", str(e))
+
+
+    def _has_unsaved_changes(self) -> bool:
+        try:
+            return (
+                asdict(self._collect_config()) != asdict(self._cfg)
+                or self._tab_quotes.has_changes()
+            )
+        except Exception:
+            return False
+
+    def _on_close(self) -> None:
+        if self._has_unsaved_changes():
+            answer = mb.askyesnocancel(
+                "未保存的修改",
+                "有未保存的修改，是否保存后退出？\n\n【是】保存并退出，【否】直接退出。",
+            )
+            if answer is None:
+                return
+            if answer:
+                try:
+                    self._tab_quotes.save()
+                    cfg = self._collect_config()
+                    save_config(cfg)
+                    self._cfg = cfg
+                except Exception as e:
+                    mb.showerror("保存失败", str(e))
+                    return
+        self.destroy()
 
 
 def run_ui() -> None:
