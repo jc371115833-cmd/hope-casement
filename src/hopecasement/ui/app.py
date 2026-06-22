@@ -1,9 +1,7 @@
 import tkinter.messagebox as mb
 from dataclasses import asdict
-from pathlib import Path
 
 import customtkinter as ctk
-from PIL import Image as PilImage
 
 from hopecasement.config import Config, load_config, save_config
 from hopecasement.ui.tab_images import ImagesTab
@@ -15,25 +13,6 @@ ctk.set_default_color_theme("blue")
 
 _VERSION = "0.1.0"
 _WIN_W, _WIN_H = 680, 560
-_PREVIEW_MAX_W, _PREVIEW_MAX_H = 960, 540
-
-
-class _PreviewWindow(ctk.CTkToplevel):
-    def __init__(self, master):
-        super().__init__(master)
-        self.title("壁纸预览")
-        self.resizable(False, False)
-        self._label = ctk.CTkLabel(self, text="")
-        self._label.pack(padx=4, pady=4)
-        self._ctk_img = None
-
-    def display(self, image_path: Path) -> None:
-        img = PilImage.open(image_path)
-        img.thumbnail((_PREVIEW_MAX_W, _PREVIEW_MAX_H), PilImage.LANCZOS)
-        w, h = img.size
-        self.geometry(f"{w + 8}x{h + 8}")
-        self._ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(w, h))
-        self._label.configure(image=self._ctk_img)
 
 
 class App(ctk.CTk):
@@ -43,7 +22,6 @@ class App(ctk.CTk):
         self.geometry(f"{_WIN_W}x{_WIN_H}")
         self.resizable(False, False)
         self._cfg = load_config()
-        self._preview_win: _PreviewWindow | None = None
         self._build()
 
     def _build(self):
@@ -68,7 +46,7 @@ class App(ctk.CTk):
         self._tab_images.pack(fill="both", expand=True)
         self._tab_images.load_config(self._cfg)
 
-        self._tab_schedule = ScheduleTab(tabs.tab("换壁纸设置"), on_preview=self._preview)
+        self._tab_schedule = ScheduleTab(tabs.tab("换壁纸设置"))
         self._tab_schedule.pack(fill="both", expand=True)
         self._tab_schedule.load_config(self._cfg)
 
@@ -114,22 +92,6 @@ class App(ctk.CTk):
             mb.showwarning("没有背景图", str(e))
         except Exception as e:
             mb.showerror("出错了", str(e))
-
-    def _preview(self):
-        try:
-            from hopecasement.image import get_background
-            from hopecasement.quotes import get_random_quote
-            from hopecasement.renderer import render_wallpaper
-            cfg = self._collect_config()
-            out = render_wallpaper(get_background(cfg.background_colors), get_random_quote(), cfg)
-            if not self._preview_win or not self._preview_win.winfo_exists():
-                self._preview_win = _PreviewWindow(self)
-            self._preview_win.display(out)
-            self._preview_win.lift()
-        except FileNotFoundError as e:
-            mb.showwarning("没有背景图", str(e))
-        except Exception as e:
-            mb.showerror("预览出错", str(e))
 
 
 def run_ui() -> None:

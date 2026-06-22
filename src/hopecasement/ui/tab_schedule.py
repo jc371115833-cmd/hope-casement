@@ -17,9 +17,8 @@ def _parse_int(s: str, default: int) -> int:
 
 
 class ScheduleTab(ctk.CTkFrame):
-    def __init__(self, master, on_preview, **kwargs):
+    def __init__(self, master, **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
-        self._on_preview = on_preview
         self._build()
 
     def _build(self):
@@ -104,10 +103,6 @@ class ScheduleTab(ctk.CTkFrame):
         self._position_btn = ctk.CTkSegmentedButton(scroll, values=_POSITION_LABELS,
                                                     command=self._on_position_change)
         self._position_btn.grid(row=row, column=1, sticky="ew", pady=6)
-        row += 1
-
-        ctk.CTkButton(scroll, text="预览效果", width=120, command=self._on_preview).grid(
-            row=row, column=1, sticky="w", pady=(4, 12))
         row += 1
 
         # --- 换壁纸计划 ---
