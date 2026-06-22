@@ -44,8 +44,10 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "HopeCasement"; Flags: deletevalue uninsdeletevalue
+
 [UninstallRun]
-Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeOnStartup /f"; Flags: runhidden
 Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeOnInterval /f"; Flags: runhidden
 Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeAtTime /f"; Flags: runhidden
 

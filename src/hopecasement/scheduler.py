@@ -1,13 +1,16 @@
 import subprocess
 import sys
+import winreg
 from pathlib import Path
 
 from hopecasement.config import Config
 
-_TASK_STARTUP = r"\HopeCasement\ChangeOnStartup"
 _TASK_INTERVAL = r"\HopeCasement\ChangeOnInterval"
 _TASK_DAILY = r"\HopeCasement\ChangeAtTime"
-_ALL_TASKS = [_TASK_STARTUP, _TASK_INTERVAL, _TASK_DAILY]
+_ALL_TASKS = [_TASK_INTERVAL, _TASK_DAILY]
+
+_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+_RUN_VALUE = "HopeCasement"
 
 
 def _exe_path() -> str:
@@ -17,19 +20,43 @@ def _exe_path() -> str:
 
 
 def _schtasks(*args: str) -> None:
-    subprocess.run(
+    result = subprocess.run(
         ["schtasks", *args],
         capture_output=True,
         text=True,
         creationflags=subprocess.CREATE_NO_WINDOW,
     )
+    if result.returncode != 0 and "/delete" not in args:
+        raise RuntimeError(f"schtasks 失败：{result.stderr.strip() or result.stdout.strip()}")
 
 
 def _delete_task(name: str) -> None:
-    _schtasks("/delete", "/tn", name, "/f")
+    subprocess.run(
+        ["schtasks", "/delete", "/tn", name, "/f"],
+        capture_output=True,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+
+
+def _set_startup_registry(exe: str) -> None:
+    with winreg.OpenKey(
+        winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_SET_VALUE
+    ) as key:
+        winreg.SetValueEx(key, _RUN_VALUE, 0, winreg.REG_SZ, f'"{exe}" --change')
+
+
+def _delete_startup_registry() -> None:
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_SET_VALUE
+        ) as key:
+            winreg.DeleteValue(key, _RUN_VALUE)
+    except OSError:
+        pass
 
 
 def clear_all_tasks() -> None:
+    _delete_startup_registry()
     for task in _ALL_TASKS:
         _delete_task(task)
 
@@ -41,13 +68,7 @@ def apply_schedule(cfg: Config) -> None:
 
     for mode in cfg.schedule_modes:
         if mode == "startup":
-            _schtasks(
-                "/create", "/f",
-                "/tn", _TASK_STARTUP,
-                "/tr", action,
-                "/sc", "ONLOGON",
-                "/delay", "0000:30",
-            )
+            _set_startup_registry(exe)
         elif mode == "interval":
             total_minutes = cfg.interval_hours * 60 + cfg.interval_minutes
             if total_minutes < 1:
