@@ -91,7 +91,6 @@ def _calc_position(
 
 
 def render_wallpaper(background: "Path | str", quote: str, cfg: Config) -> Path:
-    font = _load_font(cfg.font_size)
     if isinstance(background, str):
         w, h = _screen_size()
         rgb = ImageColor.getrgb(background)
@@ -100,7 +99,9 @@ def render_wallpaper(background: "Path | str", quote: str, cfg: Config) -> Path:
         img = Image.open(background).convert("RGBA")
     img_w, img_h = img.size
 
-    line_h = int(cfg.font_size * cfg.line_spacing)
+    font_size_px = max(12, int(img_h * cfg.font_size / 100))
+    font = _load_font(font_size_px)
+    line_h = int(font_size_px * cfg.line_spacing)
     max_lines = max(1, (img_h - 2 * cfg.text_padding) // line_h)
     raw_lines = _wrap_text(quote, font, int(img_w * cfg.text_width_ratio), max_lines)
     lines = _fix_kinsoku(raw_lines)

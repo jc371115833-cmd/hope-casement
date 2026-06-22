@@ -7,7 +7,7 @@ from hopecasement.config import Config
 _POSITIONS = ["top_left", "top_center", "center", "bottom_center", "bottom_right"]
 _POSITION_LABELS = ["左上", "顶中", "居中", "底中", "右下"]
 
-_FONT_SIZE_OPTIONS = ["24", "28", "32", "36", "40", "48", "56", "64", "72", "80", "88", "96"]
+_FONT_SIZE_OPTIONS = ["2%", "3%", "4%", "5%", "6%", "7%", "8%", "10%", "12%", "15%"]
 _LINE_SPACING_OPTIONS = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.75", "2.0", "2.5", "3.0"]
 _TEXT_WIDTH_OPTIONS = ["40%", "50%", "60%", "65%", "70%", "75%", "80%", "85%", "90%", "95%", "100%"]
 
@@ -21,10 +21,10 @@ def _parse_int(s: str, default: int) -> int:
 
 def _parse_font_size(s: str) -> int:
     try:
-        v = int(s.strip())
-        return max(12, min(120, v))
+        v = int(s.strip().rstrip("%"))
+        return max(1, min(20, v))
     except ValueError:
-        return 48
+        return 4
 
 
 def _parse_line_spacing(s: str) -> float:
@@ -68,7 +68,7 @@ class ScheduleTab(ctk.CTkFrame):
         trio.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
         ctk.CTkLabel(trio, text="字号").pack(side="left", padx=(0, 4))
         self._font_size_box = ctk.CTkComboBox(trio, values=_FONT_SIZE_OPTIONS, width=100)
-        self._font_size_box.set("48")
+        self._font_size_box.set("4%")
         self._font_size_box.pack(side="left", padx=(0, 16))
         ctk.CTkLabel(trio, text="行间距").pack(side="left", padx=(0, 4))
         self._line_spacing_box = ctk.CTkComboBox(trio, values=_LINE_SPACING_OPTIONS, width=100)
@@ -166,7 +166,7 @@ class ScheduleTab(ctk.CTkFrame):
             self._shadow_color_var.set(color.upper())
 
     def load_config(self, cfg: Config) -> None:
-        self._font_size_box.set(str(cfg.font_size))
+        self._font_size_box.set(f"{cfg.font_size}%")
         self._line_spacing_box.set(f"{cfg.line_spacing:.2g}")
         self._text_width_box.set(f"{int(cfg.text_width_ratio * 100)}%")
         self._font_color_var.set(cfg.font_color)
@@ -195,7 +195,7 @@ class ScheduleTab(ctk.CTkFrame):
         if self._daily_var.get():
             modes.append("daily")
         return {
-            "font_size": _parse_font_size(self._font_size_box.get()),
+            "font_size": _parse_font_size(self._font_size_box.get()),  # % of image height
             "line_spacing": _parse_line_spacing(self._line_spacing_box.get()),
             "text_width_ratio": _parse_text_width(self._text_width_box.get()) / 100,
             "font_color": self._font_color_var.get(),

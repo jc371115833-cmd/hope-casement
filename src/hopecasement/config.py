@@ -6,7 +6,7 @@ from pathlib import Path
 
 @dataclass
 class Config:
-    font_size: int = 48
+    font_size: int = 4  # % of image height
     font_color: str = "#FFFFFF"
     shadow_color: str = "#000000"
     shadow_offset: int = 2
@@ -43,6 +43,9 @@ def load_config() -> Config:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return Config()
+    # Migrate legacy font_size: old format was pixels (>15), new format is % of image height
+    if "font_size" in data and data["font_size"] > 15:
+        data["font_size"] = max(1, round(data["font_size"] / 10.8))
     # Migrate legacy schedule_mode field
     if "schedule_mode" in data and "schedule_modes" not in data:
         old_mode = data.pop("schedule_mode")
