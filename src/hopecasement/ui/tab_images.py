@@ -1,6 +1,7 @@
 import shutil
 import tkinter.colorchooser as cc
 import tkinter.filedialog as fd
+from collections.abc import Callable
 from pathlib import Path
 
 import customtkinter as ctk
@@ -12,6 +13,64 @@ from hopecasement.image import SUPPORTED_IMAGE_EXTENSIONS, get_user_images_dir, 
 _SWATCH_W, _SWATCH_H = 116, 72
 _THUMB_W, _THUMB_H = 116, 72
 _COLS = 4
+
+_RECOMMENDED_COLORS: list[tuple[str, str]] = [
+    ("#1A1A2E", "深夜蓝"),
+    ("#0F2027", "深洋蓝"),
+    ("#152D32", "深青碧"),
+    ("#1F4037", "深祖母绿"),
+    ("#2D1B69", "皇家靛紫"),
+    ("#1B0036", "深紫晶"),
+    ("#2C1810", "深焙咖"),
+    ("#232526", "炭岩灰"),
+]
+
+
+class _ColorPickerDialog(ctk.CTkToplevel):
+    def __init__(self, master: ctk.CTkBaseClass, on_pick: Callable[[str], None]):
+        super().__init__(master)
+        self.title("添加背景颜色")
+        self.resizable(False, False)
+        self._on_pick = on_pick
+        self._build()
+        self.grab_set()
+
+    def _build(self) -> None:
+        ctk.CTkLabel(self, text="推荐配色", font=ctk.CTkFont(weight="bold")).pack(
+            padx=20, pady=(14, 8))
+
+        grid = ctk.CTkFrame(self, fg_color="transparent")
+        grid.pack(padx=20, pady=(0, 4))
+
+        for idx, (hex_color, name) in enumerate(_RECOMMENDED_COLORS):
+            row, col = divmod(idx, 4)
+            cell = ctk.CTkFrame(grid, fg_color="transparent")
+            cell.grid(row=row, column=col, padx=6, pady=4)
+            ctk.CTkButton(
+                cell, width=72, height=44,
+                text="", fg_color=hex_color, hover_color=hex_color,
+                corner_radius=6,
+                command=lambda c=hex_color: self._select(c),
+            ).pack()
+            ctk.CTkLabel(cell, text=name, font=ctk.CTkFont(size=10)).pack()
+
+        ctk.CTkButton(
+            self, text="自定义颜色…", width=160,
+            fg_color="gray35", hover_color="gray25",
+            command=self._custom,
+        ).pack(padx=20, pady=(8, 16))
+
+    def _select(self, color: str) -> None:
+        self._on_pick(color.upper())
+        self.destroy()
+
+    def _custom(self) -> None:
+        self.grab_release()
+        result = cc.askcolor(title="自定义颜色")
+        hex_color = result[1]
+        if hex_color:
+            self._on_pick(hex_color.upper())
+        self.destroy()
 
 
 class ImagesTab(ctk.CTkFrame):
@@ -105,13 +164,11 @@ class ImagesTab(ctk.CTkFrame):
         ).pack(pady=(3, 0))
 
     def _add_color(self) -> None:
-        result = cc.askcolor(title="选择背景颜色")
-        hex_color = result[1]
-        if hex_color:
-            hex_color = hex_color.upper()
-            if hex_color not in [c.upper() for c in self._colors]:
-                self._colors.append(hex_color)
+        def on_pick(color: str) -> None:
+            if color not in self._colors:
+                self._colors.append(color)
                 self._refresh()
+        _ColorPickerDialog(self, on_pick)
 
     def _delete_color(self, color: str) -> None:
         self._colors = [c for c in self._colors if c.upper() != color.upper()]

@@ -14,9 +14,7 @@ class Config:
     text_padding: int = 80
     line_spacing: float = 1.4
     text_width_ratio: float = 0.75
-    background_colors: list[str] = field(default_factory=lambda: [
-        "#2C3E50", "#251E3F", "#2D3033", "#1A3A2A", "#3B2012",
-    ])
+    background_colors: list[str] = field(default_factory=lambda: ["#2D3033"])
     schedule_modes: list[str] = field(default_factory=list)  # empty = manual; values: "startup","interval","daily"
     interval_hours: int = 3
     interval_minutes: int = 0
