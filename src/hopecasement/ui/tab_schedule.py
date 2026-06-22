@@ -9,6 +9,13 @@ _POSITIONS = ["top_left", "top_center", "center", "bottom_center", "bottom_right
 _POSITION_LABELS = ["左上", "顶中", "居中", "底中", "右下"]
 
 
+def _parse_int(s: str, default: int) -> int:
+    try:
+        return int(s)
+    except ValueError:
+        return default
+
+
 class ScheduleTab(ctk.CTkFrame):
     def __init__(self, master, on_preview, **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
@@ -94,9 +101,9 @@ class ScheduleTab(ctk.CTkFrame):
 
         label("文字位置", row)
         self._position_var = ctk.StringVar(value="bottom_center")
-        ctk.CTkSegmentedButton(scroll, values=_POSITION_LABELS,
-                                command=self._on_position_change,
-                                ).grid(row=row, column=1, sticky="ew", pady=6)
+        self._position_btn = ctk.CTkSegmentedButton(scroll, values=_POSITION_LABELS,
+                                                    command=self._on_position_change)
+        self._position_btn.grid(row=row, column=1, sticky="ew", pady=6)
         row += 1
 
         ctk.CTkButton(scroll, text="预览效果", width=120, command=self._on_preview).grid(
@@ -168,6 +175,7 @@ class ScheduleTab(ctk.CTkFrame):
         self._shadow_offset_label.configure(text=str(cfg.shadow_offset))
         if cfg.text_position in _POSITIONS:
             self._position_var.set(cfg.text_position)
+            self._position_btn.set(_POSITION_LABELS[_POSITIONS.index(cfg.text_position)])
         self._startup_var.set("startup" in cfg.schedule_modes)
         self._interval_var.set("interval" in cfg.schedule_modes)
         self._daily_var.set("daily" in cfg.schedule_modes)
@@ -195,7 +203,7 @@ class ScheduleTab(ctk.CTkFrame):
             "shadow_offset": int(self._shadow_offset_var.get()),
             "text_position": self._position_var.get(),
             "schedule_modes": modes,
-            "interval_hours": max(0, int(self._interval_hours_entry.get() or 0)),
-            "interval_minutes": max(0, min(59, int(self._interval_minutes_entry.get() or 0))),
-            "daily_time": self._daily_entry.get() or "08:00",
+            "interval_hours": max(0, _parse_int(self._interval_hours_entry.get(), 0)),
+            "interval_minutes": max(0, min(59, _parse_int(self._interval_minutes_entry.get(), 0))),
+            "daily_time": self._daily_entry.get().strip() or "08:00",
         }

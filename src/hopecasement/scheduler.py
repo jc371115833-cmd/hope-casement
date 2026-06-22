@@ -26,7 +26,7 @@ def _schtasks(*args: str) -> None:
         text=True,
         creationflags=subprocess.CREATE_NO_WINDOW,
     )
-    if result.returncode != 0 and "/delete" not in args:
+    if result.returncode != 0:
         raise RuntimeError(f"schtasks 失败：{result.stderr.strip() or result.stdout.strip()}")
 
 
@@ -64,15 +64,20 @@ def clear_all_tasks() -> None:
 def apply_schedule(cfg: Config) -> None:
     exe = _exe_path()
     action = f'"{exe}" --change'
-    clear_all_tasks()
+    errors: list[str] = []
 
-    for mode in cfg.schedule_modes:
-        if mode == "startup":
-            _set_startup_registry(exe)
-        elif mode == "interval":
-            total_minutes = cfg.interval_hours * 60 + cfg.interval_minutes
-            if total_minutes < 1:
-                total_minutes = 60
+    # startup: registry Run key
+    if "startup" in cfg.schedule_modes:
+        _set_startup_registry(exe)
+    else:
+        _delete_startup_registry()
+
+    # interval: schtasks MINUTE
+    if "interval" in cfg.schedule_modes:
+        total_minutes = cfg.interval_hours * 60 + cfg.interval_minutes
+        if total_minutes < 1:
+            total_minutes = 60
+        try:
             _schtasks(
                 "/create", "/f",
                 "/tn", _TASK_INTERVAL,
@@ -80,7 +85,14 @@ def apply_schedule(cfg: Config) -> None:
                 "/sc", "MINUTE",
                 "/mo", str(total_minutes),
             )
-        elif mode == "daily":
+        except RuntimeError as e:
+            errors.append(str(e))
+    else:
+        _delete_task(_TASK_INTERVAL)
+
+    # daily: schtasks DAILY
+    if "daily" in cfg.schedule_modes:
+        try:
             _schtasks(
                 "/create", "/f",
                 "/tn", _TASK_DAILY,
@@ -88,3 +100,10 @@ def apply_schedule(cfg: Config) -> None:
                 "/sc", "DAILY",
                 "/st", cfg.daily_time,
             )
+        except RuntimeError as e:
+            errors.append(str(e))
+    else:
+        _delete_task(_TASK_DAILY)
+
+    if errors:
+        raise RuntimeError("\n".join(errors))

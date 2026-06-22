@@ -35,12 +35,14 @@ def _wrap_text(text: str, font, max_width: int, max_lines: int) -> list[str]:
 
     lines: list[str] = []
     current = ""
+    truncated = False
     for char in text:
         trial = current + char
         tw, _ = _measure_text(font, trial)
         if tw > max_width and current:
             lines.append(current)
             if len(lines) >= max_lines:
+                truncated = True
                 break
             current = char
         else:
@@ -49,7 +51,7 @@ def _wrap_text(text: str, font, max_width: int, max_lines: int) -> list[str]:
         if current and len(lines) < max_lines:
             lines.append(current)
 
-    if len(lines) == max_lines and current and current not in lines[-1]:
+    if truncated:
         last = lines[-1]
         while last and _measure_text(font, last + "…")[0] > max_width:
             last = last[:-1]

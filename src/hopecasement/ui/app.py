@@ -87,16 +87,20 @@ class App(ctk.CTk):
         return Config(**base)
 
     def _save(self):
-        self._tab_quotes.save()
-        cfg = self._collect_config()
-        save_config(cfg)
-        self._cfg = cfg
+        try:
+            self._tab_quotes.save()
+            cfg = self._collect_config()
+            save_config(cfg)
+            self._cfg = cfg
+        except Exception as e:
+            mb.showerror("保存失败", str(e))
+            return
         try:
             from hopecasement.scheduler import apply_schedule
             apply_schedule(cfg)
             mb.showinfo("保存成功", "设置已保存，换壁纸计划已更新。")
         except RuntimeError as e:
-            mb.showinfo("保存成功", f"设置已保存。\n注意：{e}")
+            mb.showwarning("计划更新失败", f"设置已保存。\n换壁纸计划未能更新：\n{e}")
 
     def _change_now(self):
         self._tab_quotes.save()
