@@ -1,18 +1,14 @@
-import shutil
+import os
 import tkinter.colorchooser as cc
-import tkinter.filedialog as fd
 from collections.abc import Callable
-from pathlib import Path
 
 import customtkinter as ctk
-from PIL import Image
 
 from hopecasement.config import Config
-from hopecasement.image import SUPPORTED_IMAGE_EXTENSIONS, get_user_images_dir, scan_user_images
+from hopecasement.image import get_user_images_dir, scan_user_images
 from hopecasement.ui.utils import normalize_hex_color
 
 _SWATCH_W, _SWATCH_H = 116, 72
-_THUMB_W, _THUMB_H = 116, 72
 _COLS = 4
 
 _RECOMMENDED_COLORS: list[tuple[str, str]] = [
@@ -95,7 +91,6 @@ class ImagesTab(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
         self._colors: list[str] = []
-        self._thumbs: list = []
         self._build()
 
     def _build(self):
@@ -113,12 +108,11 @@ class ImagesTab(ctk.CTkFrame):
     def _refresh(self) -> None:
         for w in self._scroll.winfo_children():
             w.destroy()
-        self._thumbs.clear()
 
         # ── 背景颜色 ────────────────────────────────────────
         color_header = ctk.CTkFrame(self._scroll, fg_color="transparent")
         color_header.pack(fill="x", padx=4, pady=(4, 2))
-        ctk.CTkLabel(color_header, text="背景颜色",
+        ctk.CTkLabel(color_header, text="纯色背景",
                      font=ctk.CTkFont(weight="bold")).pack(side="left")
         ctk.CTkButton(color_header, text="添加颜色", width=75, height=26,
                       command=self._add_color).pack(side="left", padx=(12, 0))
@@ -133,21 +127,28 @@ class ImagesTab(ctk.CTkFrame):
             self._make_swatch(cell, color)
 
         # ── 背景图片 ────────────────────────────────────────
+        images = scan_user_images()
+        folder = get_user_images_dir()
         image_header = ctk.CTkFrame(self._scroll, fg_color="transparent")
         image_header.pack(fill="x", padx=4, pady=(12, 2))
-        ctk.CTkLabel(image_header, text="背景图片",
+        ctk.CTkLabel(image_header, text="图片背景",
                      font=ctk.CTkFont(weight="bold")).pack(side="left")
-        ctk.CTkButton(image_header, text="添加图片", width=75, height=26,
-                      command=self._add_image).pack(side="left", padx=(12, 0))
+        ctk.CTkLabel(image_header, text=f"共 {len(images)} 张",
+                     text_color="#9B9A97", font=ctk.CTkFont(size=12)).pack(side="right")
 
-        image_grid = ctk.CTkFrame(self._scroll, fg_color="transparent")
-        image_grid.pack(fill="x", padx=4)
-
-        for idx, path in enumerate(scan_user_images()):
-            row, col = divmod(idx, _COLS)
-            cell = ctk.CTkFrame(image_grid, fg_color="transparent")
-            cell.grid(row=row, column=col, padx=6, pady=6)
-            self._make_thumb(cell, path)
+        card = ctk.CTkFrame(self._scroll, fg_color=["#FFFFFF", "#1C1C1E"], corner_radius=6)
+        card.pack(fill="x", padx=4, pady=(2, 0))
+        ctk.CTkLabel(
+            card, text="壁纸从下面文件夹随机选取，把图片放进去即可：",
+            text_color="#9B9A97", font=ctk.CTkFont(size=11),
+            anchor="w", justify="left",
+        ).pack(fill="x", padx=12, pady=(10, 2))
+        path_row = ctk.CTkFrame(card, fg_color="transparent")
+        path_row.pack(fill="x", padx=12, pady=(0, 10))
+        ctk.CTkLabel(path_row, text=str(folder), anchor="w",
+                     font=ctk.CTkFont(size=12)).pack(side="left", fill="x", expand=True)
+        ctk.CTkButton(path_row, text="打开文件夹", width=90, height=26,
+                      command=self._open_folder).pack(side="left", padx=(8, 0))
 
     def _make_swatch(self, cell: ctk.CTkFrame, color: str) -> None:
         swatch = ctk.CTkFrame(cell, width=_SWATCH_W, height=_SWATCH_H,
@@ -162,23 +163,13 @@ class ImagesTab(ctk.CTkFrame):
             command=lambda c=color: self._delete_color(c),
         ).pack(pady=(3, 0))
 
-    def _make_thumb(self, cell: ctk.CTkFrame, path: Path) -> None:
+    def _open_folder(self) -> None:
+        folder = get_user_images_dir()
+        folder.mkdir(parents=True, exist_ok=True)
         try:
-            img = Image.open(path)
-            img.thumbnail((_THUMB_W, _THUMB_H))
-            ctk_img = ctk.CTkImage(light_image=img, size=(_THUMB_W, _THUMB_H))
-            self._thumbs.append(ctk_img)
-            ctk.CTkLabel(cell, image=ctk_img, text="").pack()
-        except Exception:
-            ctk.CTkLabel(cell, text="?", width=_THUMB_W, height=_THUMB_H).pack()
-
-        ctk.CTkLabel(cell, text=path.name, font=ctk.CTkFont(size=10),
-                      wraplength=_THUMB_W).pack()
-        ctk.CTkButton(
-            cell, text="删除", width=80, height=22,
-            fg_color="#EEEDE9", hover_color="#E4E3DE", text_color="#37352F", font=ctk.CTkFont(size=11),
-            command=lambda p=path: self._delete_image(p),
-        ).pack(pady=(3, 0))
+            os.startfile(folder)
+        except OSError:
+            pass
 
     def _add_color(self) -> None:
         def on_pick(color: str) -> None:
@@ -189,21 +180,4 @@ class ImagesTab(ctk.CTkFrame):
 
     def _delete_color(self, color: str) -> None:
         self._colors = [c for c in self._colors if c.upper() != color.upper()]
-        self._refresh()
-
-    def _add_image(self) -> None:
-        paths = fd.askopenfilenames(
-            title="选择背景图",
-            filetypes=[
-                ("图片文件", " ".join(f"*{e}" for e in SUPPORTED_IMAGE_EXTENSIONS)),
-                ("所有文件", "*.*"),
-            ],
-        )
-        dest = get_user_images_dir()
-        for p in paths:
-            shutil.copy2(p, dest / Path(p).name)
-        self._refresh()
-
-    def _delete_image(self, path: Path) -> None:
-        path.unlink(missing_ok=True)
         self._refresh()

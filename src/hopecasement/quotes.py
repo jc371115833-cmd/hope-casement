@@ -1,4 +1,5 @@
 import random
+import re
 from pathlib import Path
 
 from hopecasement.config import get_appdata_dir
@@ -12,6 +13,7 @@ DEFAULT_QUOTES = [
 ]
 
 _FALLBACK = "来日方长，以待岁月。"
+_BULLET_RE = re.compile(r"^[*\-+]\s+")
 
 
 def _quotes_path() -> Path:
@@ -23,12 +25,21 @@ def load_quotes() -> list[str]:
     if not path.exists():
         save_quotes(DEFAULT_QUOTES)
         return list(DEFAULT_QUOTES)
-    lines = [ln.strip() for ln in path.read_text(encoding="utf-8").splitlines()]
-    return [ln for ln in lines if ln]
+    result = []
+    for ln in path.read_text(encoding="utf-8").splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        ln = _BULLET_RE.sub("", ln, count=1)
+        if ln:
+            result.append(ln)
+    return result
 
 
 def save_quotes(quotes: list[str]) -> None:
-    _quotes_path().write_text("\n".join(quotes), encoding="utf-8")
+    _quotes_path().write_text(
+        "\n".join(f"* {q}" for q in quotes), encoding="utf-8"
+    )
 
 
 def get_random_quote() -> str:
