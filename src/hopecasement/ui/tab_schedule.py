@@ -1,4 +1,3 @@
-import os
 import tkinter.colorchooser as cc
 
 import customtkinter as ctk
@@ -8,12 +7,40 @@ from hopecasement.config import Config
 _POSITIONS = ["top_left", "top_center", "center", "bottom_center", "bottom_right"]
 _POSITION_LABELS = ["左上", "顶中", "居中", "底中", "右下"]
 
+_FONT_SIZE_OPTIONS = ["24", "28", "32", "36", "40", "48", "56", "64", "72", "80", "88", "96"]
+_LINE_SPACING_OPTIONS = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.75", "2.0", "2.5", "3.0"]
+_TEXT_WIDTH_OPTIONS = ["40%", "50%", "60%", "65%", "70%", "75%", "80%", "85%", "90%", "95%", "100%"]
+
 
 def _parse_int(s: str, default: int) -> int:
     try:
         return int(s)
     except ValueError:
         return default
+
+
+def _parse_font_size(s: str) -> int:
+    try:
+        v = int(s.strip())
+        return max(12, min(120, v))
+    except ValueError:
+        return 48
+
+
+def _parse_line_spacing(s: str) -> float:
+    try:
+        v = float(s.strip())
+        return round(max(1.0, min(3.0, v)), 2)
+    except ValueError:
+        return 1.4
+
+
+def _parse_text_width(s: str) -> int:
+    try:
+        v = int(s.strip().rstrip("%"))
+        return max(20, min(100, v))
+    except ValueError:
+        return 75
 
 
 class ScheduleTab(ctk.CTkFrame):
@@ -38,38 +65,21 @@ class ScheduleTab(ctk.CTkFrame):
         row += 1
 
         label("字号", row)
-        self._font_size_var = ctk.IntVar(value=48)
-        size_row = ctk.CTkFrame(scroll, fg_color="transparent")
-        size_row.grid(row=row, column=1, sticky="ew", pady=6)
-        self._font_size_label = ctk.CTkLabel(size_row, text="48", width=32)
-        self._font_size_label.pack(side="right")
-        ctk.CTkSlider(size_row, from_=24, to=96, variable=self._font_size_var,
-                      command=lambda v: self._font_size_label.configure(text=str(int(v)))
-                      ).pack(side="left", fill="x", expand=True)
+        self._font_size_box = ctk.CTkComboBox(scroll, values=_FONT_SIZE_OPTIONS, width=110)
+        self._font_size_box.set("48")
+        self._font_size_box.grid(row=row, column=1, sticky="w", pady=6)
         row += 1
 
         label("行间距", row)
-        self._line_spacing_var = ctk.DoubleVar(value=1.4)
-        spacing_row = ctk.CTkFrame(scroll, fg_color="transparent")
-        spacing_row.grid(row=row, column=1, sticky="ew", pady=6)
-        self._line_spacing_label = ctk.CTkLabel(spacing_row, text="1.4×", width=40)
-        self._line_spacing_label.pack(side="right")
-        ctk.CTkSlider(spacing_row, from_=1.0, to=3.0, number_of_steps=20,
-                      variable=self._line_spacing_var,
-                      command=lambda v: self._line_spacing_label.configure(text=f"{v:.1f}×")
-                      ).pack(side="left", fill="x", expand=True)
+        self._line_spacing_box = ctk.CTkComboBox(scroll, values=_LINE_SPACING_OPTIONS, width=110)
+        self._line_spacing_box.set("1.4")
+        self._line_spacing_box.grid(row=row, column=1, sticky="w", pady=6)
         row += 1
 
         label("文本宽度", row)
-        self._text_width_var = ctk.IntVar(value=75)
-        width_row = ctk.CTkFrame(scroll, fg_color="transparent")
-        width_row.grid(row=row, column=1, sticky="ew", pady=6)
-        self._text_width_label = ctk.CTkLabel(width_row, text="75%", width=40)
-        self._text_width_label.pack(side="right")
-        ctk.CTkSlider(width_row, from_=30, to=100, number_of_steps=14,
-                      variable=self._text_width_var,
-                      command=lambda v: self._text_width_label.configure(text=f"{int(v)}%")
-                      ).pack(side="left", fill="x", expand=True)
+        self._text_width_box = ctk.CTkComboBox(scroll, values=_TEXT_WIDTH_OPTIONS, width=110)
+        self._text_width_box.set("75%")
+        self._text_width_box.grid(row=row, column=1, sticky="w", pady=6)
         row += 1
 
         label("文字颜色", row)
@@ -129,7 +139,7 @@ class ScheduleTab(ctk.CTkFrame):
         ctk.CTkLabel(interval_frame, text="小时").pack(side="left", padx=(2, 4))
         self._interval_minutes_entry = ctk.CTkEntry(interval_frame, width=40, justify="center")
         self._interval_minutes_entry.insert(0, "0")
-        self._interval_minutes_entry.pack(side="left", padx=(0, 0))
+        self._interval_minutes_entry.pack(side="left")
         ctk.CTkLabel(interval_frame, text="分钟换一次").pack(side="left", padx=(2, 0))
         row += 1
 
@@ -157,13 +167,10 @@ class ScheduleTab(ctk.CTkFrame):
         if color:
             self._shadow_color_var.set(color.upper())
 
-    def load_config(self, cfg: Config):
-        self._font_size_var.set(cfg.font_size)
-        self._font_size_label.configure(text=str(cfg.font_size))
-        self._line_spacing_var.set(cfg.line_spacing)
-        self._line_spacing_label.configure(text=f"{cfg.line_spacing:.1f}×")
-        self._text_width_var.set(int(cfg.text_width_ratio * 100))
-        self._text_width_label.configure(text=f"{int(cfg.text_width_ratio * 100)}%")
+    def load_config(self, cfg: Config) -> None:
+        self._font_size_box.set(str(cfg.font_size))
+        self._line_spacing_box.set(f"{cfg.line_spacing:.2g}")
+        self._text_width_box.set(f"{int(cfg.text_width_ratio * 100)}%")
         self._font_color_var.set(cfg.font_color)
         self._shadow_color_var.set(cfg.shadow_color)
         self._shadow_offset_var.set(cfg.shadow_offset)
@@ -190,9 +197,9 @@ class ScheduleTab(ctk.CTkFrame):
         if self._daily_var.get():
             modes.append("daily")
         return {
-            "font_size": int(self._font_size_var.get()),
-            "line_spacing": round(self._line_spacing_var.get(), 1),
-            "text_width_ratio": self._text_width_var.get() / 100,
+            "font_size": _parse_font_size(self._font_size_box.get()),
+            "line_spacing": _parse_line_spacing(self._line_spacing_box.get()),
+            "text_width_ratio": _parse_text_width(self._text_width_box.get()) / 100,
             "font_color": self._font_color_var.get(),
             "shadow_color": self._shadow_color_var.get(),
             "shadow_offset": int(self._shadow_offset_var.get()),
