@@ -64,22 +64,20 @@ class ScheduleTab(ctk.CTkFrame):
             row=row, column=0, columnspan=2, sticky="w", padx=4, pady=(4, 2))
         row += 1
 
-        label("字号", row)
-        self._font_size_box = ctk.CTkComboBox(scroll, values=_FONT_SIZE_OPTIONS, width=110)
+        trio = ctk.CTkFrame(scroll, fg_color="transparent")
+        trio.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
+        ctk.CTkLabel(trio, text="字号").pack(side="left", padx=(0, 4))
+        self._font_size_box = ctk.CTkComboBox(trio, values=_FONT_SIZE_OPTIONS, width=100)
         self._font_size_box.set("48")
-        self._font_size_box.grid(row=row, column=1, sticky="w", pady=6)
-        row += 1
-
-        label("行间距", row)
-        self._line_spacing_box = ctk.CTkComboBox(scroll, values=_LINE_SPACING_OPTIONS, width=110)
+        self._font_size_box.pack(side="left", padx=(0, 16))
+        ctk.CTkLabel(trio, text="行间距").pack(side="left", padx=(0, 4))
+        self._line_spacing_box = ctk.CTkComboBox(trio, values=_LINE_SPACING_OPTIONS, width=100)
         self._line_spacing_box.set("1.4")
-        self._line_spacing_box.grid(row=row, column=1, sticky="w", pady=6)
-        row += 1
-
-        label("文本宽度", row)
-        self._text_width_box = ctk.CTkComboBox(scroll, values=_TEXT_WIDTH_OPTIONS, width=110)
+        self._line_spacing_box.pack(side="left", padx=(0, 16))
+        ctk.CTkLabel(trio, text="文本宽度").pack(side="left", padx=(0, 4))
+        self._text_width_box = ctk.CTkComboBox(trio, values=_TEXT_WIDTH_OPTIONS, width=100)
         self._text_width_box.set("75%")
-        self._text_width_box.grid(row=row, column=1, sticky="w", pady=6)
+        self._text_width_box.pack(side="left")
         row += 1
 
         label("文字颜色", row)
