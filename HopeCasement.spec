@@ -11,6 +11,7 @@ a = Analysis(
     datas=[
         (os.path.join(ctk_path, 'assets'), 'customtkinter\\assets'),
         ('src\\hopecasement\\ui\\theme.json', 'hopecasement\\ui'),
+        ('src\\hopecasement\\ui\\hopecasement.ico', 'hopecasement\\ui'),
     ],
     hiddenimports=[
         'PIL._tkinter_finder',

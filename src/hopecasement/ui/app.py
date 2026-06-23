@@ -12,7 +12,8 @@ from hopecasement.ui.tab_schedule import ScheduleTab
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme(str(Path(__file__).parent / "theme.json"))
-_WIN_W, _WIN_H = 680, 560
+_WIN_W, _WIN_H = 680, 640
+_ICON_PATH = Path(__file__).parent / "hopecasement.ico"
 
 
 class App(ctk.CTk):
@@ -24,8 +25,18 @@ class App(ctk.CTk):
         self._cfg = load_config()
         self._build()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self._apply_window_icon()
         self.after(0, self._apply_titlebar_color)
+        # CustomTkinter sets its own icon shortly after creation; re-apply to win the race.
+        self.after(300, self._apply_window_icon)
         self.after(2000, self._poll_external_changes)
+
+    def _apply_window_icon(self) -> None:
+        if _ICON_PATH.exists():
+            try:
+                self.iconbitmap(str(_ICON_PATH))
+            except Exception:
+                pass
 
     def _poll_external_changes(self) -> None:
         try:
