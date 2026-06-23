@@ -48,6 +48,14 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "HopeCasement"; Flags: deletevalue uninsdeletevalue
 
 [UninstallRun]
-Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeOnInterval /f"; Flags: runhidden
-Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeAtTime /f"; Flags: runhidden
+Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeOnInterval /f"; Flags: runhidden; RunOnceId: "DelTaskInterval"
+Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeAtTime /f"; Flags: runhidden; RunOnceId: "DelTaskDaily"
+
+; Remove user data created at runtime so uninstall leaves no traces.
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}\backgrounds"
+Type: files; Name: "{app}\config.json"
+Type: files; Name: "{app}\quotes.txt"
+Type: files; Name: "{app}\current_wallpaper.png"
+Type: dirifempty; Name: "{app}"
 
