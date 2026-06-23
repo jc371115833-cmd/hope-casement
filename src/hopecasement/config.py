@@ -18,6 +18,7 @@ class Config:
     text_y: int = 88  # vertical center of text block, % of image height (0=top, 100=bottom)
     line_spacing: float = 1.4
     text_width_ratio: float = 0.75
+    text_align: str = "center"  # left | center | right
     background_colors: list[str] = field(default_factory=lambda: ["#2D3033"])
     images_dir: str = ""  # custom background folder; empty = appdata/backgrounds
     schedule_modes: list[str] = field(default_factory=list)  # empty = manual; values: "startup","interval","daily"

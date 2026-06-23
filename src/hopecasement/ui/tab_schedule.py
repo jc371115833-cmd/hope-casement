@@ -9,6 +9,9 @@ from hopecasement.ui.utils import normalize_hex_color
 
 _FONT_NAME_BY_FILE = {f: name for name, f in FONT_CHOICES.items()}
 
+_ALIGN_BY_LABEL = {"左对齐": "left", "居中": "center", "右对齐": "right"}
+_ALIGN_LABEL_BY_VALUE = {v: k for k, v in _ALIGN_BY_LABEL.items()}
+
 _FONT_SIZE_OPTIONS    = ["2%", "3%", "4%", "5%", "6%", "7%", "8%", "10%", "12%", "15%"]
 _LINE_SPACING_OPTIONS = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.75", "2.0", "2.5", "3.0"]
 _TEXT_WIDTH_OPTIONS   = ["40%", "50%", "60%", "65%", "70%", "75%", "80%", "85%", "90%", "95%", "100%"]
@@ -91,15 +94,12 @@ class ScheduleTab(ctk.CTkFrame):
                       command=self._reset_text_style).pack(side="left", padx=(12, 0))
         row += 1
 
-        self._show_text_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(scroll, text="显示文字", variable=self._show_text_var,
-                        command=self._toggle_text_style).grid(
-            row=row, column=0, columnspan=2, sticky="w", padx=4, pady=(2, 4))
-        row += 1
-
-        # 字号 / 行间距 / 文本宽度 — 同一行
+        # 显示文字 + 字号 / 行间距 / 文本宽度 — 同一行
         trio = ctk.CTkFrame(scroll, fg_color="transparent")
         trio.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
+        self._show_text_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(trio, text="显示文字", variable=self._show_text_var,
+                        command=self._toggle_text_style).pack(side="left", padx=(0, 16))
         ctk.CTkLabel(trio, text="字号").pack(side="left", padx=(0, 4))
         self._font_size_box = ctk.CTkComboBox(trio, values=_FONT_SIZE_OPTIONS, width=90)
         self._font_size_box.set("4%")
@@ -107,18 +107,12 @@ class ScheduleTab(ctk.CTkFrame):
         ctk.CTkLabel(trio, text="行间距").pack(side="left", padx=(0, 4))
         self._line_spacing_box = ctk.CTkComboBox(trio, values=_LINE_SPACING_OPTIONS, width=75)
         self._line_spacing_box.set("1.4")
-        self._line_spacing_box.pack(side="left", padx=(0, 16))
-        ctk.CTkLabel(trio, text="文本宽度").pack(side="left", padx=(0, 4))
-        self._text_width_box = ctk.CTkComboBox(trio, values=_TEXT_WIDTH_OPTIONS, width=75)
-        self._text_width_box.set("75%")
-        self._text_width_box.pack(side="left")
+        self._line_spacing_box.pack(side="left")
 
         self._font_size_box._entry.bind(
             "<FocusOut>", lambda e: self._font_size_box.set(f"{_fmt_float(_parse_font_size(self._font_size_box.get()))}%"))
         self._line_spacing_box._entry.bind(
             "<FocusOut>", lambda e: self._line_spacing_box.set(_fmt_float(_parse_line_spacing(self._line_spacing_box.get()))))
-        self._text_width_box._entry.bind(
-            "<FocusOut>", lambda e: self._text_width_box.set(f"{_parse_text_width(self._text_width_box.get())}%"))
         row += 1
 
         # 字体 + 文字颜色 + 阴影颜色 — 同一行
@@ -174,7 +168,7 @@ class ScheduleTab(ctk.CTkFrame):
         self._text_bg_color_entry = ctk.CTkEntry(textbg_row, width=88)
         self._text_bg_color_entry.insert(0, "#000000")
         self._text_bg_color_entry.pack(side="left", padx=(0, 24))
-        ctk.CTkLabel(textbg_row, text="文字背景透明度").pack(side="left", padx=(0, 6))
+        ctk.CTkLabel(textbg_row, text="不透明度").pack(side="left", padx=(0, 6))
         self._text_bg_opacity_box = ctk.CTkComboBox(textbg_row, values=_OPACITY_OPTIONS, width=75)
         self._text_bg_opacity_box.set("30%")
         self._text_bg_opacity_box.pack(side="left")
@@ -186,21 +180,34 @@ class ScheduleTab(ctk.CTkFrame):
             "<Return>", lambda e: self._apply_color(self._text_bg_color_entry, self._text_bg_color_swatch))
         row += 1
 
-        # 文字位置
-        label("文字位置", row)
+        # 对齐方式
+        label("对齐方式", row)
+        self._align_seg = ctk.CTkSegmentedButton(scroll, values=list(_ALIGN_BY_LABEL.keys()))
+        self._align_seg.set("居中")
+        self._align_seg.grid(row=row, column=1, sticky="w", pady=6)
+        row += 1
+
+        # 文字位置 + 文本宽度 — 同一行
         pos_frame = ctk.CTkFrame(scroll, fg_color="transparent")
-        pos_frame.grid(row=row, column=1, sticky="w", pady=6)
+        pos_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
+        ctk.CTkLabel(pos_frame, text="文字位置").pack(side="left", padx=(0, 8))
         ctk.CTkLabel(pos_frame, text="横").pack(side="left")
-        self._text_x_entry = ctk.CTkEntry(pos_frame, width=52, justify="center")
+        self._text_x_entry = ctk.CTkEntry(pos_frame, width=46, justify="center")
         self._text_x_entry.insert(0, "50")
         self._text_x_entry.pack(side="left", padx=(4, 2))
-        ctk.CTkLabel(pos_frame, text="%", text_color="gray").pack(side="left", padx=(0, 16))
+        ctk.CTkLabel(pos_frame, text="%", text_color="gray").pack(side="left", padx=(0, 10))
         ctk.CTkLabel(pos_frame, text="纵").pack(side="left")
-        self._text_y_entry = ctk.CTkEntry(pos_frame, width=52, justify="center")
+        self._text_y_entry = ctk.CTkEntry(pos_frame, width=46, justify="center")
         self._text_y_entry.insert(0, "88")
         self._text_y_entry.pack(side="left", padx=(4, 2))
-        ctk.CTkLabel(pos_frame, text="%  （0=左/顶，100=右/底）",
-                     text_color="gray", font=ctk.CTkFont(size=11)).pack(side="left")
+        ctk.CTkLabel(pos_frame, text="%（左上为0）",
+                     text_color="gray", font=ctk.CTkFont(size=11)).pack(side="left", padx=(0, 20))
+        ctk.CTkLabel(pos_frame, text="文本宽度").pack(side="left", padx=(0, 4))
+        self._text_width_box = ctk.CTkComboBox(pos_frame, values=_TEXT_WIDTH_OPTIONS, width=72)
+        self._text_width_box.set("75%")
+        self._text_width_box.pack(side="left")
+        self._text_width_box._entry.bind(
+            "<FocusOut>", lambda e: self._text_width_box.set(f"{_parse_text_width(self._text_width_box.get())}%"))
         row += 1
 
         self._text_style_widgets = [
@@ -208,6 +215,7 @@ class ScheduleTab(ctk.CTkFrame):
             self._font_size_box, self._line_spacing_box, self._text_width_box,
             self._font_color_entry, self._shadow_color_entry,
             self._text_bg_color_entry, self._text_bg_opacity_box,
+            self._align_seg,
             self._text_x_entry, self._text_y_entry,
         ]
 
@@ -275,6 +283,7 @@ class ScheduleTab(ctk.CTkFrame):
         self._text_bg_color_entry.insert(0, d.text_bg_color)
         self._text_bg_color_swatch.configure(fg_color=d.text_bg_color)
         self._text_bg_opacity_box.set(f"{d.text_bg_opacity}%")
+        self._align_seg.set(_ALIGN_LABEL_BY_VALUE.get(d.text_align, "居中"))
         self._text_x_entry.delete(0, "end")
         self._text_x_entry.insert(0, str(d.text_x))
         self._text_y_entry.delete(0, "end")
@@ -338,6 +347,7 @@ class ScheduleTab(ctk.CTkFrame):
         self._text_bg_color_entry.insert(0, cfg.text_bg_color)
         self._text_bg_color_swatch.configure(fg_color=cfg.text_bg_color)
         self._text_bg_opacity_box.set(f"{cfg.text_bg_opacity}%")
+        self._align_seg.set(_ALIGN_LABEL_BY_VALUE.get(cfg.text_align, "居中"))
         self._text_x_entry.delete(0, "end")
         self._text_x_entry.insert(0, str(cfg.text_x))
         self._text_y_entry.delete(0, "end")
@@ -370,6 +380,7 @@ class ScheduleTab(ctk.CTkFrame):
             "shadow_color": normalize_hex_color(self._shadow_color_entry.get()) or "#000000",
             "text_bg_color": normalize_hex_color(self._text_bg_color_entry.get()) or "#000000",
             "text_bg_opacity": _parse_opacity(self._text_bg_opacity_box.get()),
+            "text_align": _ALIGN_BY_LABEL.get(self._align_seg.get(), "center"),
             "text_x": max(0, min(100, _parse_int(self._text_x_entry.get(), 50))),
             "text_y": max(0, min(100, _parse_int(self._text_y_entry.get(), 88))),
             "schedule_modes": modes,

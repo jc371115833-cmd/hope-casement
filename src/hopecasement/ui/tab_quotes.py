@@ -1,7 +1,9 @@
+import os
 import re
 import tkinter as tk
 import tkinter.filedialog as fd
 import tkinter.messagebox as mb
+from contextlib import contextmanager
 from pathlib import Path
 
 import customtkinter as ctk
@@ -60,16 +62,24 @@ class QuotesTab(ctk.CTkFrame):
         # and never gets squeezed out by the expanding text frame.
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.pack(side="bottom", fill="x", padx=8, pady=(0, 8))
-        ctk.CTkButton(btn_row, text="导入 .txt 文件", width=140,
-                      command=self._import).pack(side="left", padx=(0, 8))
+        ctk.CTkButton(btn_row, text="导入", width=72,
+                      command=self._import).pack(side="left")
         ctk.CTkButton(
-            btn_row, text="恢复默认句子", width=140,
+            btn_row, text="打开文件", width=88,
             fg_color="#EEEDE9", hover_color="#E4E3DE", text_color="#37352F",
-            command=self._restore,
-        ).pack(side="left")
+            command=self._open_file,
+        ).pack(side="left", padx=(8, 0))
+        ctk.CTkLabel(btn_row, text="支持 .txt / .md 文件",
+                     text_color="#9B9A97", font=ctk.CTkFont(size=12)).pack(side="left", padx=(10, 0))
+        # Count sits at the far right; the rarely-used restore is a de-emphasized text button beside it.
         self._count_label = ctk.CTkLabel(
             btn_row, text="", text_color="#9B9A97", font=ctk.CTkFont(size=12))
         self._count_label.pack(side="right")
+        ctk.CTkButton(
+            btn_row, text="恢复默认句子", width=96, height=24,
+            fg_color="transparent", hover_color="#EEEDE9", text_color="#9B9A97",
+            font=ctk.CTkFont(size=12), command=self._restore,
+        ).pack(side="right", padx=(0, 12))
 
         text_frame = ctk.CTkFrame(
             self, corner_radius=8, border_width=1,
@@ -110,6 +120,7 @@ class QuotesTab(ctk.CTkFrame):
         self._text.bind("<Left>",          self._on_left)
         self._text.bind("<Right>",         self._on_right)
         self._text.bind("<Key>",           self._on_any_key)
+        self._text.bind("<KeyRelease>",    self._on_key_release)
         self._text.bind("<<Paste>>",       self._on_paste)
         self._text.bind("<FocusOut>",      self._on_focus_out)
         self._text.bind("<ButtonRelease-1>", self._on_click)
@@ -133,13 +144,38 @@ class QuotesTab(ctk.CTkFrame):
 
     # ── numbering ──────────────────────────────────────────────────────────
 
-    def _renumber(self) -> None:
-        """Update only changed line prefixes; undo=False so content undo is unaffected."""
+    def _content_empty(self, line: int) -> bool:
+        """True if the line has no quote content (blank, or only a locked number)."""
+        return not _strip_num(self._text.get(f"{line}.0", f"{line}.end")).strip()
+
+    def _ensure_ghost(self) -> None:
+        """Keep exactly one empty trailing line — the 'next input' slot users type into.
+
+        Inherits the caller's undo state (renumber toggles it), so it stays cosmetic.
+        The insert mark is preserved so appending the ghost never drags the cursor down.
+        """
+        saved = self._text.index("insert")
+        last = int(self._text.index("end-1c").split(".")[0])
+        while last >= 2 and self._content_empty(last) and self._content_empty(last - 1):
+            self._text.delete(f"{last - 1}.end", f"{last}.end")
+            last -= 1
+        if not self._content_empty(last):
+            self._text.insert("end-1c", "\n")
+        self._text.mark_set("insert", saved)
+
+    def _renumber(self, track_undo: bool = False) -> None:
+        """Update only changed line prefixes and keep one trailing ghost slot.
+
+        By default undo is disabled so prefix changes don't pollute the undo stack.
+        Pass track_undo=True to record them, e.g. so a paste undoes as one unit.
+        """
         if self._renumbering:
             return
         self._renumbering = True
-        self._text.config(undo=False)
+        if not track_undo:
+            self._text.config(undo=False)
         try:
+            self._ensure_ghost()
             total = int(self._text.index("end-1c").split(".")[0])
             for i in range(1, total + 1):
                 line_text = self._text.get(f"{i}.0", f"{i}.end")
@@ -154,9 +190,26 @@ class QuotesTab(ctk.CTkFrame):
             self._reapply_tags()
             self._update_count()
         finally:
-            self._text.config(undo=True)
+            if not track_undo:
+                self._text.config(undo=True)
             self._renumbering = False
         self._clamp_cursor()
+
+    @contextmanager
+    def _atomic_edit(self):
+        """Group a structural edit + its renumber into one undo unit.
+
+        Disables tk's auto separators and brackets the edit with manual ones so a
+        single Ctrl+Z reverts the whole thing — never leaving an orphan prefix or line.
+        """
+        self._text.configure(autoseparators=False)
+        self._text.edit_separator()
+        try:
+            yield
+        finally:
+            self._renumber(track_undo=True)
+            self._text.edit_separator()
+            self._text.configure(autoseparators=True)
 
     def _reapply_tags(self) -> None:
         self._text.tag_remove("num", "1.0", "end")
@@ -171,10 +224,13 @@ class QuotesTab(ctk.CTkFrame):
     # ── event handlers ─────────────────────────────────────────────────────
 
     def _on_return(self, event) -> str:
-        self._text.edit_separator()
-        self._text.insert("insert", "\n")
-        new_line = int(self._text.index("insert").split(".")[0])
-        self._renumber()
+        self._clamp_cursor()
+        line = int(self._text.index("insert").split(".")[0])
+        if self._content_empty(line):
+            return "break"  # never create empty items; the ghost slot already waits below
+        with self._atomic_edit():
+            self._text.insert("insert", "\n")
+            new_line = int(self._text.index("insert").split(".")[0])
         prefix = f"{new_line}. "
         self._text.mark_set("insert", f"{new_line}.{len(prefix)}")
         self._text.see("insert")
@@ -193,9 +249,8 @@ class QuotesTab(ctk.CTkFrame):
             if line == 1:
                 return "break"
             # Merge: delete newline + this line's prefix to join with prev line
-            self._text.edit_separator()
-            self._text.delete(f"{line - 1}.end", f"{line}.{plen}")
-            self._renumber()
+            with self._atomic_edit():
+                self._text.delete(f"{line - 1}.end", f"{line}.{plen}")
             return "break"
         return None
 
@@ -213,9 +268,8 @@ class QuotesTab(ctk.CTkFrame):
             total = int(self._text.index("end-1c").split(".")[0])
             if line < total:
                 next_plen = self._prefix_len(line + 1)
-                self._text.edit_separator()
-                self._text.delete("insert", f"{line + 1}.{next_plen}")
-                self._renumber()
+                with self._atomic_edit():
+                    self._text.delete("insert", f"{line + 1}.{next_plen}")
                 return "break"
         return None
 
@@ -262,12 +316,27 @@ class QuotesTab(ctk.CTkFrame):
             return
         self._clamp_cursor()
 
-    def _on_paste(self, event) -> None:
-        def finish():
+    def _on_key_release(self, event) -> None:
+        """Maintain the trailing ghost slot as content is typed or deleted."""
+        if (event.char and event.char.isprintable()) or event.keysym in ("BackSpace", "Delete"):
             self._renumber()
-            self._text.mark_set("insert", "end-1c")
-            self._text.see("insert")
-        self._text.after(10, finish)
+
+    def _on_paste(self, event) -> str:
+        """Clean clipboard text the same way as 导入 before inserting it."""
+        try:
+            raw = self._text.clipboard_get()
+        except tk.TclError:
+            return "break"
+        cleaned = [q for ln in raw.splitlines() if (q := _parse_import_line(ln)) is not None]
+        if not cleaned:
+            return "break"
+        with self._atomic_edit():
+            if self._text.tag_ranges("sel"):
+                self._text.delete("sel.first", "sel.last")
+            self._clamp_cursor()
+            self._text.insert("insert", "\n".join(cleaned))
+        self._text.see("insert")
+        return "break"
 
     def _on_focus_out(self, event) -> None:
         self._renumber()
@@ -290,11 +359,21 @@ class QuotesTab(ctk.CTkFrame):
         return [s for ln in lines if (s := _strip_num(ln).strip())]
 
     def _set_quotes(self, quotes: list[str]) -> None:
+        """Replace all content without undo bookkeeping (used at load; stack is reset after)."""
         numbered = "\n".join(f"{i + 1}. {q}" for i, q in enumerate(quotes))
         self._text.delete("1.0", "end")
         self._text.insert("1.0", numbered)
         self._reapply_tags()
         self._update_count()
+
+    def _replace_all_undoable(self, quotes: list[str]) -> None:
+        """Replace all content as a single undo unit (used by 导入 / 恢复默认)."""
+        with self._atomic_edit():
+            self._text.delete("1.0", "end-1c")
+            self._text.insert("1.0", "\n".join(quotes))
+        self._text.mark_set("insert", "1.0")
+        self._clamp_cursor()
+        self._text.see("insert")
 
     def _disk_mtime(self) -> float:
         p = quotes_path()
@@ -303,6 +382,7 @@ class QuotesTab(ctk.CTkFrame):
     def _load(self) -> None:
         self._baseline = load_quotes()
         self._set_quotes(self._baseline)
+        self._renumber()  # append the trailing ghost slot
         self._text.edit_reset()  # loaded content is the undo floor
         self._disk_mtime_seen = self._disk_mtime()
 
@@ -326,14 +406,23 @@ class QuotesTab(ctk.CTkFrame):
         existing = self._get_quotes()
         existing_set = set(existing)
         new_quotes = [q for q in parsed if q not in existing_set]
-        self._set_quotes(existing + new_quotes)
+        self._replace_all_undoable(existing + new_quotes)
         mb.showinfo(
             "导入完成",
             f"共识别 {len(parsed)} 句，新增 {len(new_quotes)} 句，去重 {len(parsed) - len(new_quotes)} 句。",
         )
 
+    def _open_file(self) -> None:
+        # Persist the current view first so the opened file matches what's shown;
+        # external edits then sync back via poll_reload.
+        self.save()
+        try:
+            os.startfile(quotes_path())
+        except OSError:
+            pass
+
     def _restore(self) -> None:
-        self._set_quotes(list(DEFAULT_QUOTES))
+        self._replace_all_undoable(list(DEFAULT_QUOTES))
 
     def has_changes(self) -> bool:
         return self._get_quotes() != self._baseline
