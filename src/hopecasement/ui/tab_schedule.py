@@ -244,8 +244,8 @@ class ScheduleTab(ctk.CTkFrame):
         self._interval_minutes_entry.insert(0, "0")
         self._interval_minutes_entry.pack(side="left")
         ctk.CTkLabel(interval_frame, text="分钟换一次").pack(side="left", padx=(2, 0))
-        ctk.CTkLabel(interval_frame, text="（不少于 1 分钟）",
-                     text_color="gray", font=ctk.CTkFont(size=11)).pack(side="left", padx=(8, 0))
+        ctk.CTkLabel(interval_frame, text="（至少 1 分钟）",
+                     text_color="gray", font=ctk.CTkFont(size=11)).pack(side="left", padx=(6, 0))
         row += 1
 
         self._daily_var = ctk.BooleanVar(value=False)

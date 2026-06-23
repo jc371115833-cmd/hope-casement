@@ -12,7 +12,7 @@ from hopecasement.ui.tab_schedule import ScheduleTab
 
 ctk.set_appearance_mode("light")
 ctk.set_default_color_theme(str(Path(__file__).parent / "theme.json"))
-_WIN_W, _WIN_H = 680, 600
+_WIN_W, _WIN_H = 680, 640
 _ICON_PATH = Path(__file__).parent / "hopecasement.ico"
 
 
@@ -20,7 +20,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title(f"来日窗笺  v{__version__}")
-        self.geometry(self._fit_geometry())
+        self.geometry(f"{_WIN_W}x{_WIN_H}")
         self.resizable(True, True)
         self._cfg = load_config()
         self._build()
@@ -30,24 +30,6 @@ class App(ctk.CTk):
         # CustomTkinter sets its own icon shortly after creation; re-apply to win the race.
         self.after(300, self._apply_window_icon)
         self.after(2000, self._poll_external_changes)
-
-    def _fit_geometry(self) -> str:
-        """Center the window and cap its height so it always fits on screen.
-
-        CustomTkinter scales width/height by the display scaling but leaves the
-        x/y offset in physical pixels, so the position is computed in physical px.
-        """
-        try:
-            scaling = self._get_window_scaling()
-            screen_w, screen_h = self.winfo_screenwidth(), self.winfo_screenheight()
-            max_logical_h = int((screen_h - 80) / scaling)  # leave room for the taskbar
-            h = max(420, min(_WIN_H, max_logical_h))
-            phys_w, phys_h = int(_WIN_W * scaling), int(h * scaling)
-            x = max(0, (screen_w - phys_w) // 2)
-            y = max(0, (screen_h - phys_h) // 2 - 20)
-            return f"{_WIN_W}x{h}+{x}+{y}"
-        except Exception:
-            return f"{_WIN_W}x{_WIN_H}"
 
     def _apply_window_icon(self) -> None:
         if _ICON_PATH.exists():
@@ -83,10 +65,21 @@ class App(ctk.CTk):
             text="来日窗笺",
             font=ctk.CTkFont(size=20, weight="bold"),
         )
-        header.pack(pady=(16, 4))
+        header.pack(side="top", pady=(16, 4))
+
+        # Pack the button row at the bottom first so it always reserves its
+        # space and never gets squeezed out by the expanding tabview.
+        btn_row = ctk.CTkFrame(self, fg_color="transparent")
+        btn_row.pack(side="bottom", fill="x", padx=16, pady=(0, 16))
+        ctk.CTkButton(btn_row, text="立即换壁纸", width=140, command=self._change_now).pack(side="left")
+        ctk.CTkButton(btn_row, text="保存设置", width=140, command=self._save).pack(side="right")
+        self._status_label = ctk.CTkLabel(
+            btn_row, text="", text_color="#5A8F5A", font=ctk.CTkFont(size=13))
+        self._status_label.pack(side="left", padx=16)
+        self._status_token = 0
 
         tabs = ctk.CTkTabview(self)
-        tabs.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+        tabs.pack(side="top", fill="both", expand=True, padx=16, pady=(0, 8))
 
         tabs.add("句子库")
         tabs.add("背景图")
@@ -105,21 +98,12 @@ class App(ctk.CTk):
 
         tabs.set("换壁纸设置")
 
-        btn_row = ctk.CTkFrame(self, fg_color="transparent")
-        btn_row.pack(fill="x", padx=16, pady=(0, 16))
-
-        ctk.CTkButton(btn_row, text="立即换壁纸", width=140, command=self._change_now).pack(side="left")
-        ctk.CTkButton(btn_row, text="保存设置", width=140, command=self._save).pack(side="right")
-        self._status = ctk.CTkLabel(btn_row, text="", font=ctk.CTkFont(size=12))
-        self._status.pack(side="left", padx=16)
-        self._status_after: str | None = None
-
-    def _flash(self, msg: str, color: str = "#3E7A3C") -> None:
-        """Show a brief, non-modal status message that clears itself."""
-        self._status.configure(text=msg, text_color=color)
-        if self._status_after is not None:
-            self.after_cancel(self._status_after)
-        self._status_after = self.after(3500, lambda: self._status.configure(text=""))
+    def _flash_status(self, text: str) -> None:
+        """Show a brief non-modal confirmation next to the buttons, then clear it."""
+        self._status_token += 1
+        token = self._status_token
+        self._status_label.configure(text=text)
+        self.after(2500, lambda: self._status_token == token and self._status_label.configure(text=""))
 
     def _collect_config(self) -> Config:
         values = {}
@@ -141,7 +125,7 @@ class App(ctk.CTk):
         try:
             from hopecasement.scheduler import apply_schedule
             apply_schedule(cfg)
-            self._flash("✓ 已保存，换壁纸计划已更新")
+            self._flash_status("✓ 已保存")
         except RuntimeError as e:
             mb.showwarning("计划更新失败", f"设置已保存。\n换壁纸计划未能更新：\n{e}")
 
@@ -156,7 +140,7 @@ class App(ctk.CTk):
         except Exception as e:
             mb.showerror("出错了", str(e))
         else:
-            self._flash("✓ 已更换壁纸")
+            self._flash_status("✓ 已更换壁纸")
 
 
     def _has_unsaved_changes(self) -> bool:

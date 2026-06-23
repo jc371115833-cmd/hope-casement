@@ -11,6 +11,7 @@ from hopecasement.config import Config
 _TASK_INTERVAL = r"\HopeCasement\ChangeOnInterval"
 _TASK_DAILY = r"\HopeCasement\ChangeAtTime"
 _ALL_TASKS = [_TASK_INTERVAL, _TASK_DAILY]
+_TASK_NS = "http://schemas.microsoft.com/windows/2004/02/mit/task"
 
 _RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 _RUN_VALUE = "HopeCasement"
@@ -41,41 +42,60 @@ def _delete_task(name: str) -> None:
     )
 
 
-def _task_xml(exe: str, trigger: str) -> str:
-    """Build a Task Scheduler XML.
-
-    Power conditions are disabled so the change still runs on battery, and the
-    trigger repeats indefinitely. Runs in the interactive session (needed to
-    affect the visible desktop).
-    """
+def _task_xml(exe: str, trigger_xml: str) -> str:
+    """Build a Task Scheduler XML that runs even on battery and never expires."""
     return (
-        '<?xml version="1.0" encoding="UTF-16"?>'
-        '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">'
-        "<RegistrationInfo><Description>HopeCasement 换壁纸</Description></RegistrationInfo>"
-        f"<Triggers>{trigger}</Triggers>"
-        '<Principals><Principal id="Author">'
-        "<LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel>"
-        "</Principal></Principals>"
-        "<Settings>"
-        "<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>"
-        "<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>"
-        "<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>"
-        "<StartWhenAvailable>true</StartWhenAvailable>"
-        "<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>"
-        "<Enabled>true</Enabled>"
-        "</Settings>"
-        '<Actions Context="Author"><Exec>'
-        f"<Command>{escape(exe)}</Command><Arguments>--change</Arguments>"
-        "</Exec></Actions>"
-        "</Task>"
+        '<?xml version="1.0" encoding="UTF-16"?>\n'
+        f'<Task version="1.2" xmlns="{_TASK_NS}">\n'
+        "  <RegistrationInfo><Author>HopeCasement</Author></RegistrationInfo>\n"
+        f"  <Triggers>\n{trigger_xml}\n  </Triggers>\n"
+        "  <Principals><Principal id=\"Author\">"
+        "<LogonType>InteractiveToken</LogonType>"
+        "<RunLevel>LeastPrivilege</RunLevel></Principal></Principals>\n"
+        "  <Settings>\n"
+        "    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>\n"
+        "    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>\n"
+        "    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>\n"
+        "    <StartWhenAvailable>true</StartWhenAvailable>\n"
+        "    <ExecutionTimeLimit>PT10M</ExecutionTimeLimit>\n"
+        "    <Enabled>true</Enabled>\n"
+        "  </Settings>\n"
+        "  <Actions Context=\"Author\">\n"
+        f"    <Exec><Command>{escape(exe)}</Command><Arguments>--change</Arguments></Exec>\n"
+        "  </Actions>\n"
+        "</Task>\n"
     )
 
 
-def _register_task(name: str, xml: str) -> None:
-    fd, path = tempfile.mkstemp(suffix=".xml")
+def _interval_trigger(total_minutes: int) -> str:
+    return (
+        "    <TimeTrigger>\n"
+        "      <StartBoundary>2020-01-01T00:00:00</StartBoundary>\n"
+        "      <Enabled>true</Enabled>\n"
+        f"      <Repetition><Interval>PT{total_minutes}M</Interval>"
+        "<StopAtDurationEnd>false</StopAtDurationEnd></Repetition>\n"
+        "    </TimeTrigger>"
+    )
+
+
+def _daily_trigger(hhmm: str) -> str:
+    return (
+        "    <CalendarTrigger>\n"
+        f"      <StartBoundary>2020-01-01T{hhmm}:00</StartBoundary>\n"
+        "      <Enabled>true</Enabled>\n"
+        "      <ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay>\n"
+        "    </CalendarTrigger>"
+    )
+
+
+def _create_task_xml(name: str, xml: str) -> None:
+    """schtasks /create /xml needs a UTF-16 file on disk."""
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".xml", delete=False, encoding="utf-16"
+    ) as f:
+        f.write(xml)
+        path = f.name
     try:
-        with os.fdopen(fd, "w", encoding="utf-16") as f:
-            f.write(xml)
         _schtasks("/create", "/f", "/tn", name, "/xml", path)
     finally:
         os.unlink(path)
@@ -114,35 +134,22 @@ def apply_schedule(cfg: Config) -> None:
     else:
         _delete_startup_registry()
 
-    # interval: repeat every N minutes, indefinitely
+    # interval: repeat every N minutes, indefinitely, even on battery
     if "interval" in cfg.schedule_modes:
         total_minutes = cfg.interval_hours * 60 + cfg.interval_minutes
         if total_minutes < 1:
             total_minutes = 60
-        trigger = (
-            "<TimeTrigger>"
-            "<StartBoundary>2020-01-01T00:00:00</StartBoundary><Enabled>true</Enabled>"
-            f"<Repetition><Interval>PT{total_minutes}M</Interval>"
-            "<StopAtDurationEnd>false</StopAtDurationEnd></Repetition>"
-            "</TimeTrigger>"
-        )
         try:
-            _register_task(_TASK_INTERVAL, _task_xml(exe, trigger))
+            _create_task_xml(_TASK_INTERVAL, _task_xml(exe, _interval_trigger(total_minutes)))
         except RuntimeError as e:
             errors.append(str(e))
     else:
         _delete_task(_TASK_INTERVAL)
 
-    # daily: once a day at the chosen time
+    # daily: once per day at the set time, even on battery
     if "daily" in cfg.schedule_modes:
-        trigger = (
-            "<CalendarTrigger>"
-            f"<StartBoundary>2020-01-01T{cfg.daily_time}:00</StartBoundary><Enabled>true</Enabled>"
-            "<ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay>"
-            "</CalendarTrigger>"
-        )
         try:
-            _register_task(_TASK_DAILY, _task_xml(exe, trigger))
+            _create_task_xml(_TASK_DAILY, _task_xml(exe, _daily_trigger(cfg.daily_time)))
         except RuntimeError as e:
             errors.append(str(e))
     else:
