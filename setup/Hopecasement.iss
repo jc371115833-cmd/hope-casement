@@ -57,5 +57,6 @@ Type: filesandordirs; Name: "{app}\backgrounds"
 Type: files; Name: "{app}\config.json"
 Type: files; Name: "{app}\quotes.txt"
 Type: files; Name: "{app}\current_wallpaper.png"
+Type: files; Name: "{app}\change_error.log"
 Type: dirifempty; Name: "{app}"
 
