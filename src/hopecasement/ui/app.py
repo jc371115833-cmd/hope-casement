@@ -1,3 +1,4 @@
+import threading
 import tkinter.messagebox as mb
 from dataclasses import asdict
 from pathlib import Path
@@ -71,7 +72,8 @@ class App(ctk.CTk):
         # space and never gets squeezed out by the expanding tabview.
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.pack(side="bottom", fill="x", padx=16, pady=(0, 16))
-        ctk.CTkButton(btn_row, text="立即换壁纸", width=140, command=self._change_now).pack(side="left")
+        self._change_btn = ctk.CTkButton(btn_row, text="立即换壁纸", width=140, command=self._change_now)
+        self._change_btn.pack(side="left")
         ctk.CTkButton(btn_row, text="保存设置", width=140, command=self._save).pack(side="right")
         self._status_label = ctk.CTkLabel(
             btn_row, text="", text_color="#5A8F5A", font=ctk.CTkFont(size=13))
@@ -130,15 +132,41 @@ class App(ctk.CTk):
             mb.showwarning("计划更新失败", f"设置已保存。\n换壁纸计划未能更新：\n{e}")
 
     def _change_now(self):
+        # Read widget values on the UI thread, then render + set the wallpaper off
+        # it so the window never freezes during the (~1s) image work.
         try:
             self._tab_quotes.save()
             cfg = self._collect_config()
-            from hopecasement.changer import change_wallpaper
-            change_wallpaper(cfg)
-        except FileNotFoundError as e:
-            mb.showwarning("没有背景图", str(e))
         except Exception as e:
             mb.showerror("出错了", str(e))
+            return
+        self._change_btn.configure(state="disabled", text="更换中…")
+        # Worker only sets a plain attribute (GIL-atomic); the UI thread polls it.
+        # Tkinter isn't thread-safe, so the worker never touches widgets.
+        self._change_result: tuple[str, str] | None = None
+        threading.Thread(target=self._change_worker, args=(cfg,), daemon=True).start()
+        self.after(80, self._poll_change)
+
+    def _change_worker(self, cfg: Config) -> None:
+        try:
+            from hopecasement.changer import change_wallpaper
+            change_wallpaper(cfg)
+            self._change_result = ("ok", "")
+        except FileNotFoundError as e:
+            self._change_result = ("nobg", str(e))
+        except Exception as e:
+            self._change_result = ("error", str(e))
+
+    def _poll_change(self) -> None:
+        if self._change_result is None:
+            self.after(80, self._poll_change)
+            return
+        kind, msg = self._change_result
+        self._change_btn.configure(state="normal", text="立即换壁纸")
+        if kind == "nobg":
+            mb.showwarning("没有背景图", msg)
+        elif kind == "error":
+            mb.showerror("出错了", msg)
         else:
             self._flash_status("✓ 已更换壁纸")
 

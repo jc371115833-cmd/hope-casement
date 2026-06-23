@@ -221,5 +221,6 @@ def render_wallpaper(background: Path | str, quote: str, cfg: Config) -> Path:
     result = result_img.convert("RGB")
 
     out = get_appdata_dir() / "current_wallpaper.png"
-    result.save(str(out), "PNG")
+    # compress_level=1: wallpaper file size is irrelevant; this is much faster than the default.
+    result.save(str(out), "PNG", compress_level=1)
     return out
