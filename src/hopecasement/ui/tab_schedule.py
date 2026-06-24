@@ -1,9 +1,10 @@
+import os
 import re
 import tkinter.colorchooser as cc
 
 import customtkinter as ctk
 
-from hopecasement.config import Config
+from hopecasement.config import Config, get_history_dir
 from hopecasement.renderer import DEFAULT_FONT_FILE, FONT_CHOICES, available_fonts
 from hopecasement.ui.utils import normalize_hex_color
 
@@ -91,7 +92,7 @@ class ScheduleTab(ctk.CTkFrame):
                       fg_color="transparent", border_width=1,
                       border_color="#B0AFA8", text_color="#37352F",
                       hover_color="#EEEDE9", font=ctk.CTkFont(size=12),
-                      command=self._reset_text_style).pack(side="left", padx=(12, 0))
+                      command=self._reset_defaults).pack(side="left", padx=(12, 0))
         row += 1
 
         # 显示文字 + 字号 / 行间距 / 文本宽度 — 同一行
@@ -122,7 +123,7 @@ class ScheduleTab(ctk.CTkFrame):
         ctk.CTkLabel(color_row, text="字体").pack(side="left", padx=(0, 4))
         self._font_box = ctk.CTkComboBox(
             color_row, values=list(available_fonts().keys()), width=110, state="readonly")
-        self._font_box.set("微软雅黑")
+        self._font_box.set("楷体")
         self._font_box.pack(side="left", padx=(0, 20))
 
         ctk.CTkLabel(color_row, text="文字颜色").pack(side="left", padx=(0, 6))
@@ -227,12 +228,12 @@ class ScheduleTab(ctk.CTkFrame):
                      text_color="gray", font=ctk.CTkFont(size=12)).pack(side="left")
         row += 1
 
-        self._startup_var = ctk.BooleanVar(value=False)
+        self._startup_var = ctk.BooleanVar(value=True)
         ctk.CTkCheckBox(scroll, text="开机时换", variable=self._startup_var).grid(
             row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
         row += 1
 
-        self._interval_var = ctk.BooleanVar(value=False)
+        self._interval_var = ctk.BooleanVar(value=True)
         interval_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         interval_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
         ctk.CTkCheckBox(interval_frame, text="每", variable=self._interval_var).pack(side="left")
@@ -248,7 +249,7 @@ class ScheduleTab(ctk.CTkFrame):
                      text_color="gray", font=ctk.CTkFont(size=11)).pack(side="left", padx=(6, 0))
         row += 1
 
-        self._daily_var = ctk.BooleanVar(value=False)
+        self._daily_var = ctk.BooleanVar(value=True)
         daily_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         daily_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
         ctk.CTkCheckBox(daily_frame, text="每天", variable=self._daily_var).pack(side="left")
@@ -257,6 +258,27 @@ class ScheduleTab(ctk.CTkFrame):
         self._daily_entry.pack(side="left", padx=4)
         ctk.CTkLabel(daily_frame, text="换一次").pack(side="left")
         self._daily_entry.bind("<FocusOut>", lambda e: self._normalize_daily_entry())
+        row += 1
+
+        # 保存历史壁纸
+        history_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        history_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=(10, 4))
+        self._save_history_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(history_frame, text="保存每次生成的壁纸",
+                        variable=self._save_history_var).pack(side="left")
+        ctk.CTkButton(
+            history_frame, text="打开文件夹", width=88, height=26,
+            fg_color="#EEEDE9", hover_color="#E4E3DE", text_color="#37352F",
+            command=self._open_history,
+        ).pack(side="left", padx=(12, 0))
+
+    def _open_history(self) -> None:
+        folder = get_history_dir()
+        folder.mkdir(parents=True, exist_ok=True)
+        try:
+            os.startfile(folder)
+        except OSError:
+            pass
 
     def _normalize_daily_entry(self) -> None:
         normalized = _parse_time(self._daily_entry.get())
@@ -268,8 +290,9 @@ class ScheduleTab(ctk.CTkFrame):
         for w in self._text_style_widgets:
             w.configure(state=state)
 
-    def _reset_text_style(self) -> None:
+    def _reset_defaults(self) -> None:
         d = Config()
+        # 文字样式
         self._show_text_var.set(d.show_text)
         self._font_box.set(_FONT_NAME_BY_FILE.get(d.font_file, "微软雅黑"))
         self._font_size_box.set(f"{d.font_size}%")
@@ -291,6 +314,17 @@ class ScheduleTab(ctk.CTkFrame):
         self._text_y_entry.delete(0, "end")
         self._text_y_entry.insert(0, str(d.text_y))
         self._toggle_text_style()
+        # 换壁纸计划
+        self._startup_var.set("startup" in d.schedule_modes)
+        self._interval_var.set("interval" in d.schedule_modes)
+        self._daily_var.set("daily" in d.schedule_modes)
+        self._interval_hours_entry.delete(0, "end")
+        self._interval_hours_entry.insert(0, str(d.interval_hours))
+        self._interval_minutes_entry.delete(0, "end")
+        self._interval_minutes_entry.insert(0, str(d.interval_minutes))
+        self._daily_entry.delete(0, "end")
+        self._daily_entry.insert(0, d.daily_time)
+        self._save_history_var.set(d.save_history)
 
     def _apply_color(self, entry: ctk.CTkEntry, swatch: ctk.CTkFrame) -> None:
         color = normalize_hex_color(entry.get())
@@ -363,6 +397,7 @@ class ScheduleTab(ctk.CTkFrame):
         self._interval_minutes_entry.insert(0, str(cfg.interval_minutes))
         self._daily_entry.delete(0, "end")
         self._daily_entry.insert(0, cfg.daily_time)
+        self._save_history_var.set(cfg.save_history)
 
     def get_config_values(self) -> dict:
         modes = []
@@ -389,4 +424,5 @@ class ScheduleTab(ctk.CTkFrame):
             "interval_hours": max(0, _parse_int(self._interval_hours_entry.get(), 0)),
             "interval_minutes": max(0, min(59, _parse_int(self._interval_minutes_entry.get(), 0))),
             "daily_time": _parse_time(self._daily_entry.get()),
+            "save_history": self._save_history_var.get(),
         }

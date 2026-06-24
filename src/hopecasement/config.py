@@ -7,7 +7,7 @@ from pathlib import Path
 @dataclass
 class Config:
     font_size: float = 4.0  # % of image height
-    font_file: str = "msyh.ttc"  # font filename under the Windows Fonts dir
+    font_file: str = "simkai.ttf"  # font filename under the Windows Fonts dir (楷体)
     font_color: str = "#FFFFFF"
     shadow_color: str = "#000000"
     shadow_offset: int = 3
@@ -21,7 +21,9 @@ class Config:
     text_align: str = "center"  # left | center | right
     background_colors: list[str] = field(default_factory=lambda: ["#2D3033"])
     images_dir: str = ""  # custom background folder; empty = appdata/backgrounds
-    schedule_modes: list[str] = field(default_factory=list)  # empty = manual; values: "startup","interval","daily"
+    save_history: bool = False  # keep a timestamped copy of every generated wallpaper
+    schedule_modes: list[str] = field(  # empty = manual; values: "startup","interval","daily"
+        default_factory=lambda: ["startup", "interval", "daily"])
     interval_hours: int = 3
     interval_minutes: int = 0
     daily_time: str = "08:00"
@@ -39,6 +41,10 @@ def get_appdata_dir() -> Path:
 
 def _config_path() -> Path:
     return get_appdata_dir() / "config.json"
+
+
+def get_history_dir() -> Path:
+    return get_appdata_dir() / "history"
 
 
 _POS_MAP = {

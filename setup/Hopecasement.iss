@@ -54,6 +54,7 @@ Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeAtTime /f
 ; Remove user data created at runtime so uninstall leaves no traces.
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\backgrounds"
+Type: filesandordirs; Name: "{app}\history"
 Type: files; Name: "{app}\config.json"
 Type: files; Name: "{app}\quotes.txt"
 Type: files; Name: "{app}\current_wallpaper.png"

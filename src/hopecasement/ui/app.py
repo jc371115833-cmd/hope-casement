@@ -1,3 +1,4 @@
+import re
 import threading
 import tkinter.messagebox as mb
 from dataclasses import asdict
@@ -26,6 +27,7 @@ class App(ctk.CTk):
         self._cfg = load_config()
         self._build()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.bind("<Map>", self._on_restore)
         self._apply_window_icon()
         self.after(0, self._apply_titlebar_color)
         # CustomTkinter sets its own icon shortly after creation; re-apply to win the race.
@@ -47,6 +49,31 @@ class App(ctk.CTk):
             pass
         self.after(2000, self._poll_external_changes)
 
+    def _on_restore(self, event=None) -> None:
+        # CustomTkinter doesn't repaint its canvas-based widgets after a minimize/
+        # restore, leaving them black. Only react to the toplevel's own Map event.
+        if event is not None and event.widget is not self:
+            return
+        self.after(0, self._force_redraw)
+
+    def _force_redraw(self) -> None:
+        """A 1px geometry nudge forces every CTk canvas to redraw itself."""
+        try:
+            geo = self.geometry()  # logical "WxH+X+Y"
+            m = re.match(r"(\d+)x(\d+)(.*)", geo)
+            if not m:
+                return
+            w, h, rest = int(m.group(1)), int(m.group(2)), m.group(3)
+            self.geometry(f"{w}x{h + 1}{rest}")
+            self.update_idletasks()
+            self.geometry(geo)
+            # The geometry nudge can miss some widgets; re-setting the appearance
+            # mode makes CTk redraw every registered widget.
+            ctk.set_appearance_mode(ctk.get_appearance_mode())
+            self._apply_titlebar_color()
+        except Exception:
+            pass
+
     def _apply_titlebar_color(self) -> None:
         try:
             import ctypes
@@ -61,12 +88,7 @@ class App(ctk.CTk):
             pass
 
     def _build(self):
-        header = ctk.CTkLabel(
-            self,
-            text="来日窗笺",
-            font=ctk.CTkFont(size=20, weight="bold"),
-        )
-        header.pack(side="top", pady=(16, 4))
+        # No in-window title — the window title bar already shows the app name.
 
         # Pack the button row at the bottom first so it always reserves its
         # space and never gets squeezed out by the expanding tabview.
