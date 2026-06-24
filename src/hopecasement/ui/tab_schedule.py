@@ -5,13 +5,11 @@ import tkinter.colorchooser as cc
 import customtkinter as ctk
 
 from hopecasement.config import Config, get_history_dir
-from hopecasement.renderer import DEFAULT_FONT_FILE, FONT_CHOICES, available_fonts
+from hopecasement.i18n import font_name, t
+from hopecasement.renderer import DEFAULT_FONT_FILE, available_font_files
 from hopecasement.ui.utils import normalize_hex_color
 
-_FONT_NAME_BY_FILE = {f: name for name, f in FONT_CHOICES.items()}
-
-_ALIGN_BY_LABEL = {"左对齐": "left", "居中": "center", "右对齐": "right"}
-_ALIGN_LABEL_BY_VALUE = {v: k for k, v in _ALIGN_BY_LABEL.items()}
+_ALIGN_VALUES = ["left", "center", "right"]
 
 _FONT_SIZE_OPTIONS    = ["2%", "3%", "4%", "5%", "6%", "7%", "8%", "10%", "12%", "15%"]
 _LINE_SPACING_OPTIONS = ["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.75", "2.0", "2.5", "3.0"]
@@ -71,6 +69,11 @@ def _parse_time(s: str) -> str:
 class ScheduleTab(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
+        # Localized display ↔ value maps, built now that the language is set.
+        self._align_label = {v: t(f"align_{v}") for v in _ALIGN_VALUES}  # value → label
+        self._align_value = {lbl: v for v, lbl in self._align_label.items()}  # label → value
+        self._font_files = available_font_files()
+        self._font_by_label = {font_name(f): f for f in self._font_files}  # label → file
         self._build()
 
     def _build(self):
@@ -87,8 +90,8 @@ class ScheduleTab(ctk.CTkFrame):
         # --- 文字样式 ---
         style_header = ctk.CTkFrame(scroll, fg_color="transparent")
         style_header.grid(row=row, column=0, columnspan=2, sticky="ew", padx=4, pady=(4, 2))
-        ctk.CTkLabel(style_header, text="文字样式", font=ctk.CTkFont(weight="bold")).pack(side="left")
-        ctk.CTkButton(style_header, text="恢复默认", width=72, height=24,
+        ctk.CTkLabel(style_header, text=t("s_text_style"), font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkButton(style_header, text=t("s_reset"), width=72, height=24,
                       fg_color="transparent", border_width=1,
                       border_color="#B0AFA8", text_color="#37352F",
                       hover_color="#EEEDE9", font=ctk.CTkFont(size=12),
@@ -99,13 +102,13 @@ class ScheduleTab(ctk.CTkFrame):
         trio = ctk.CTkFrame(scroll, fg_color="transparent")
         trio.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
         self._show_text_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(trio, text="显示文字", variable=self._show_text_var,
+        ctk.CTkCheckBox(trio, text=t("s_show_text"), variable=self._show_text_var,
                         command=self._toggle_text_style).pack(side="left", padx=(0, 16))
-        ctk.CTkLabel(trio, text="字号").pack(side="left", padx=(0, 4))
+        ctk.CTkLabel(trio, text=t("s_size")).pack(side="left", padx=(0, 4))
         self._font_size_box = ctk.CTkComboBox(trio, values=_FONT_SIZE_OPTIONS, width=90)
         self._font_size_box.set("4%")
         self._font_size_box.pack(side="left", padx=(0, 16))
-        ctk.CTkLabel(trio, text="行间距").pack(side="left", padx=(0, 4))
+        ctk.CTkLabel(trio, text=t("s_line_spacing")).pack(side="left", padx=(0, 4))
         self._line_spacing_box = ctk.CTkComboBox(trio, values=_LINE_SPACING_OPTIONS, width=75)
         self._line_spacing_box.set("1.4")
         self._line_spacing_box.pack(side="left")
@@ -120,13 +123,13 @@ class ScheduleTab(ctk.CTkFrame):
         color_row = ctk.CTkFrame(scroll, fg_color="transparent")
         color_row.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
 
-        ctk.CTkLabel(color_row, text="字体").pack(side="left", padx=(0, 4))
+        ctk.CTkLabel(color_row, text=t("s_font")).pack(side="left", padx=(0, 4))
         self._font_box = ctk.CTkComboBox(
-            color_row, values=list(available_fonts().keys()), width=110, state="readonly")
-        self._font_box.set("楷体")
+            color_row, values=[font_name(f) for f in self._font_files], width=120, state="readonly")
+        self._font_box.set(font_name("simkai.ttf"))
         self._font_box.pack(side="left", padx=(0, 20))
 
-        ctk.CTkLabel(color_row, text="文字颜色").pack(side="left", padx=(0, 6))
+        ctk.CTkLabel(color_row, text=t("s_font_color")).pack(side="left", padx=(0, 6))
         self._font_color_swatch = ctk.CTkFrame(
             color_row, width=28, height=28, fg_color="#FFFFFF", corner_radius=4,
             cursor="hand2")
@@ -137,7 +140,7 @@ class ScheduleTab(ctk.CTkFrame):
         self._font_color_entry.insert(0, "#FFFFFF")
         self._font_color_entry.pack(side="left", padx=(0, 20))
 
-        ctk.CTkLabel(color_row, text="阴影颜色").pack(side="left", padx=(0, 6))
+        ctk.CTkLabel(color_row, text=t("s_shadow_color")).pack(side="left", padx=(0, 6))
         self._shadow_color_swatch = ctk.CTkFrame(
             color_row, width=28, height=28, fg_color="#000000", corner_radius=4,
             cursor="hand2")
@@ -159,7 +162,7 @@ class ScheduleTab(ctk.CTkFrame):
         # 文字背景：衬底颜色 + 透明度 — 同一行
         textbg_row = ctk.CTkFrame(scroll, fg_color="transparent")
         textbg_row.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
-        ctk.CTkLabel(textbg_row, text="文字背景").pack(side="left", padx=(0, 6))
+        ctk.CTkLabel(textbg_row, text=t("s_text_bg")).pack(side="left", padx=(0, 6))
         self._text_bg_color_swatch = ctk.CTkFrame(
             textbg_row, width=28, height=28, fg_color="#000000", corner_radius=4,
             cursor="hand2")
@@ -169,7 +172,7 @@ class ScheduleTab(ctk.CTkFrame):
         self._text_bg_color_entry = ctk.CTkEntry(textbg_row, width=88)
         self._text_bg_color_entry.insert(0, "#000000")
         self._text_bg_color_entry.pack(side="left", padx=(0, 24))
-        ctk.CTkLabel(textbg_row, text="不透明度").pack(side="left", padx=(0, 6))
+        ctk.CTkLabel(textbg_row, text=t("s_opacity")).pack(side="left", padx=(0, 6))
         self._text_bg_opacity_box = ctk.CTkComboBox(textbg_row, values=_OPACITY_OPTIONS, width=75)
         self._text_bg_opacity_box.set("30%")
         self._text_bg_opacity_box.pack(side="left")
@@ -182,28 +185,29 @@ class ScheduleTab(ctk.CTkFrame):
         row += 1
 
         # 对齐方式
-        label("对齐方式", row)
-        self._align_seg = ctk.CTkSegmentedButton(scroll, values=list(_ALIGN_BY_LABEL.keys()))
-        self._align_seg.set("居中")
+        label(t("s_align"), row)
+        self._align_seg = ctk.CTkSegmentedButton(
+            scroll, values=[self._align_label[v] for v in _ALIGN_VALUES])
+        self._align_seg.set(self._align_label["center"])
         self._align_seg.grid(row=row, column=1, sticky="w", pady=6)
         row += 1
 
         # 文字位置 + 文本宽度 — 同一行
         pos_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         pos_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=6)
-        ctk.CTkLabel(pos_frame, text="文字位置").pack(side="left", padx=(0, 8))
-        ctk.CTkLabel(pos_frame, text="横").pack(side="left")
+        ctk.CTkLabel(pos_frame, text=t("s_position")).pack(side="left", padx=(0, 8))
+        ctk.CTkLabel(pos_frame, text=t("s_pos_x")).pack(side="left")
         self._text_x_entry = ctk.CTkEntry(pos_frame, width=46, justify="center")
         self._text_x_entry.insert(0, "50")
         self._text_x_entry.pack(side="left", padx=(4, 2))
         ctk.CTkLabel(pos_frame, text="%", text_color="gray").pack(side="left", padx=(0, 10))
-        ctk.CTkLabel(pos_frame, text="纵").pack(side="left")
+        ctk.CTkLabel(pos_frame, text=t("s_pos_y")).pack(side="left")
         self._text_y_entry = ctk.CTkEntry(pos_frame, width=46, justify="center")
         self._text_y_entry.insert(0, "88")
         self._text_y_entry.pack(side="left", padx=(4, 2))
-        ctk.CTkLabel(pos_frame, text="%（左上为0）",
+        ctk.CTkLabel(pos_frame, text=t("s_pos_hint"),
                      text_color="gray", font=ctk.CTkFont(size=11)).pack(side="left", padx=(0, 20))
-        ctk.CTkLabel(pos_frame, text="文本宽度").pack(side="left", padx=(0, 4))
+        ctk.CTkLabel(pos_frame, text=t("s_text_width")).pack(side="left", padx=(0, 4))
         self._text_width_box = ctk.CTkComboBox(pos_frame, values=_TEXT_WIDTH_OPTIONS, width=72)
         self._text_width_box.set("75%")
         self._text_width_box.pack(side="left")
@@ -223,40 +227,40 @@ class ScheduleTab(ctk.CTkFrame):
         # --- 换壁纸计划 ---
         header_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         header_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=(8, 2))
-        ctk.CTkLabel(header_frame, text="换壁纸计划", font=ctk.CTkFont(weight="bold")).pack(side="left")
-        ctk.CTkLabel(header_frame, text="  （可多选）",
+        ctk.CTkLabel(header_frame, text=t("s_schedule"), font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkLabel(header_frame, text=t("s_multi"),
                      text_color="gray", font=ctk.CTkFont(size=12)).pack(side="left")
         row += 1
 
         self._startup_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(scroll, text="开机时换", variable=self._startup_var).grid(
+        ctk.CTkCheckBox(scroll, text=t("s_startup"), variable=self._startup_var).grid(
             row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
         row += 1
 
         self._interval_var = ctk.BooleanVar(value=True)
         interval_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         interval_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
-        ctk.CTkCheckBox(interval_frame, text="每", variable=self._interval_var).pack(side="left")
+        ctk.CTkCheckBox(interval_frame, text=t("s_every"), variable=self._interval_var).pack(side="left")
         self._interval_hours_entry = ctk.CTkEntry(interval_frame, width=40, justify="center")
         self._interval_hours_entry.insert(0, "3")
         self._interval_hours_entry.pack(side="left", padx=(4, 0))
-        ctk.CTkLabel(interval_frame, text="小时").pack(side="left", padx=(2, 4))
+        ctk.CTkLabel(interval_frame, text=t("s_hours")).pack(side="left", padx=(2, 4))
         self._interval_minutes_entry = ctk.CTkEntry(interval_frame, width=40, justify="center")
         self._interval_minutes_entry.insert(0, "0")
         self._interval_minutes_entry.pack(side="left")
-        ctk.CTkLabel(interval_frame, text="分钟换一次").pack(side="left", padx=(2, 0))
-        ctk.CTkLabel(interval_frame, text="（至少 1 分钟）",
+        ctk.CTkLabel(interval_frame, text=t("s_minutes")).pack(side="left", padx=(2, 0))
+        ctk.CTkLabel(interval_frame, text=t("s_min_hint"),
                      text_color="gray", font=ctk.CTkFont(size=11)).pack(side="left", padx=(6, 0))
         row += 1
 
         self._daily_var = ctk.BooleanVar(value=True)
         daily_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         daily_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=4)
-        ctk.CTkCheckBox(daily_frame, text="每天", variable=self._daily_var).pack(side="left")
+        ctk.CTkCheckBox(daily_frame, text=t("s_daily"), variable=self._daily_var).pack(side="left")
         self._daily_entry = ctk.CTkEntry(daily_frame, width=72, justify="center")
         self._daily_entry.insert(0, "08:00")
         self._daily_entry.pack(side="left", padx=4)
-        ctk.CTkLabel(daily_frame, text="换一次").pack(side="left")
+        ctk.CTkLabel(daily_frame, text=t("s_daily_suffix")).pack(side="left")
         self._daily_entry.bind("<FocusOut>", lambda e: self._normalize_daily_entry())
         row += 1
 
@@ -264,10 +268,10 @@ class ScheduleTab(ctk.CTkFrame):
         history_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         history_frame.grid(row=row, column=0, columnspan=2, sticky="w", padx=4, pady=(10, 4))
         self._save_history_var = ctk.BooleanVar(value=False)
-        ctk.CTkCheckBox(history_frame, text="保存每次生成的壁纸",
+        ctk.CTkCheckBox(history_frame, text=t("s_save_history"),
                         variable=self._save_history_var).pack(side="left")
         ctk.CTkButton(
-            history_frame, text="打开文件夹", width=88, height=26,
+            history_frame, text=t("open_folder"), width=88, height=26,
             fg_color="#EEEDE9", hover_color="#E4E3DE", text_color="#37352F",
             command=self._open_history,
         ).pack(side="left", padx=(12, 0))
@@ -294,7 +298,7 @@ class ScheduleTab(ctk.CTkFrame):
         d = Config()
         # 文字样式
         self._show_text_var.set(d.show_text)
-        self._font_box.set(_FONT_NAME_BY_FILE.get(d.font_file, "微软雅黑"))
+        self._font_box.set(font_name(d.font_file))
         self._font_size_box.set(f"{d.font_size}%")
         self._line_spacing_box.set(f"{d.line_spacing:.2g}")
         self._text_width_box.set(f"{int(d.text_width_ratio * 100)}%")
@@ -308,7 +312,7 @@ class ScheduleTab(ctk.CTkFrame):
         self._text_bg_color_entry.insert(0, d.text_bg_color)
         self._text_bg_color_swatch.configure(fg_color=d.text_bg_color)
         self._text_bg_opacity_box.set(f"{d.text_bg_opacity}%")
-        self._align_seg.set(_ALIGN_LABEL_BY_VALUE.get(d.text_align, "居中"))
+        self._align_seg.set(self._align_label.get(d.text_align, self._align_label["center"]))
         self._text_x_entry.delete(0, "end")
         self._text_x_entry.insert(0, str(d.text_x))
         self._text_y_entry.delete(0, "end")
@@ -337,7 +341,7 @@ class ScheduleTab(ctk.CTkFrame):
         if not self._show_text_var.get():
             return
         current = normalize_hex_color(self._font_color_entry.get()) or "#FFFFFF"
-        color = cc.askcolor(color=current, title="文字颜色")[1]
+        color = cc.askcolor(color=current, title=t("s_pick_text"))[1]
         if color:
             color = color.upper()
             self._font_color_entry.delete(0, "end")
@@ -348,7 +352,7 @@ class ScheduleTab(ctk.CTkFrame):
         if not self._show_text_var.get():
             return
         current = normalize_hex_color(self._shadow_color_entry.get()) or "#000000"
-        color = cc.askcolor(color=current, title="阴影颜色")[1]
+        color = cc.askcolor(color=current, title=t("s_pick_shadow"))[1]
         if color:
             color = color.upper()
             self._shadow_color_entry.delete(0, "end")
@@ -359,7 +363,7 @@ class ScheduleTab(ctk.CTkFrame):
         if not self._show_text_var.get():
             return
         current = normalize_hex_color(self._text_bg_color_entry.get()) or "#000000"
-        color = cc.askcolor(color=current, title="文字背景颜色")[1]
+        color = cc.askcolor(color=current, title=t("s_pick_textbg"))[1]
         if color:
             color = color.upper()
             self._text_bg_color_entry.delete(0, "end")
@@ -369,7 +373,7 @@ class ScheduleTab(ctk.CTkFrame):
     def load_config(self, cfg: Config) -> None:
         self._show_text_var.set(cfg.show_text)
         self._toggle_text_style()
-        self._font_box.set(_FONT_NAME_BY_FILE.get(cfg.font_file, "微软雅黑"))
+        self._font_box.set(font_name(cfg.font_file))
         self._font_size_box.set(f"{_fmt_float(cfg.font_size)}%")
         self._line_spacing_box.set(_fmt_float(cfg.line_spacing))
         self._text_width_box.set(f"{int(cfg.text_width_ratio * 100)}%")
@@ -383,7 +387,7 @@ class ScheduleTab(ctk.CTkFrame):
         self._text_bg_color_entry.insert(0, cfg.text_bg_color)
         self._text_bg_color_swatch.configure(fg_color=cfg.text_bg_color)
         self._text_bg_opacity_box.set(f"{cfg.text_bg_opacity}%")
-        self._align_seg.set(_ALIGN_LABEL_BY_VALUE.get(cfg.text_align, "居中"))
+        self._align_seg.set(self._align_label.get(cfg.text_align, self._align_label["center"]))
         self._text_x_entry.delete(0, "end")
         self._text_x_entry.insert(0, str(cfg.text_x))
         self._text_y_entry.delete(0, "end")
@@ -409,7 +413,7 @@ class ScheduleTab(ctk.CTkFrame):
             modes.append("daily")
         return {
             "show_text": self._show_text_var.get(),
-            "font_file": FONT_CHOICES.get(self._font_box.get(), DEFAULT_FONT_FILE),
+            "font_file": self._font_by_label.get(self._font_box.get(), DEFAULT_FONT_FILE),
             "font_size": _parse_font_size(self._font_size_box.get()),
             "line_spacing": _parse_line_spacing(self._line_spacing_box.get()),
             "text_width_ratio": _parse_text_width(self._text_width_box.get()) / 100,
@@ -417,7 +421,7 @@ class ScheduleTab(ctk.CTkFrame):
             "shadow_color": normalize_hex_color(self._shadow_color_entry.get()) or "#000000",
             "text_bg_color": normalize_hex_color(self._text_bg_color_entry.get()) or "#000000",
             "text_bg_opacity": _parse_opacity(self._text_bg_opacity_box.get()),
-            "text_align": _ALIGN_BY_LABEL.get(self._align_seg.get(), "center"),
+            "text_align": self._align_value.get(self._align_seg.get(), "center"),
             "text_x": max(0, min(100, _parse_int(self._text_x_entry.get(), 50))),
             "text_y": max(0, min(100, _parse_int(self._text_y_entry.get(), 88))),
             "schedule_modes": modes,

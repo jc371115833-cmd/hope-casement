@@ -11,11 +11,15 @@
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppId={{2FB42E98-50ED-4FEE-8024-3B20F66DFF40}
-AppName={#MyAppName}
+; Display name is localized; the install folder stays the ASCII "HopeCasement".
+AppName={cm:AppDisplayName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+VersionInfoProductName={#MyAppName}
+VersionInfoDescription={#MyAppName} Setup
 DefaultDirName={localappdata}\{#MyAppName}
+UninstallDisplayName={cm:AppDisplayName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -31,6 +35,10 @@ WizardStyle=modern
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 
+[CustomMessages]
+english.AppDisplayName=HopeCasement
+chinesesimplified.AppDisplayName=来日窗笺
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
@@ -38,14 +46,17 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "{#SourcePath}\..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autoprograms}\{cm:AppDisplayName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autodesktop}\{cm:AppDisplayName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "HopeCasement"; Flags: deletevalue uninsdeletevalue
+; Record the chosen language so the app launches in the same one.
+Root: HKCU; Subkey: "Software\HopeCasement"; ValueType: string; ValueName: "Language"; ValueData: "zh"; Languages: chinesesimplified; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\HopeCasement"; ValueType: string; ValueName: "Language"; ValueData: "en"; Languages: english; Flags: uninsdeletekey
 
 [UninstallRun]
 Filename: "schtasks.exe"; Parameters: "/delete /tn \HopeCasement\ChangeOnInterval /f"; Flags: runhidden; RunOnceId: "DelTaskInterval"
@@ -58,6 +69,6 @@ Type: filesandordirs; Name: "{app}\history"
 Type: files; Name: "{app}\config.json"
 Type: files; Name: "{app}\quotes.txt"
 Type: files; Name: "{app}\current_wallpaper.png"
-Type: files; Name: "{app}\error.log"
+Type: files; Name: "{app}\change_error.log"
 Type: dirifempty; Name: "{app}"
 

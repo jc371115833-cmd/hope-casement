@@ -22,6 +22,7 @@ class Config:
     background_colors: list[str] = field(default_factory=lambda: ["#2D3033"])
     images_dir: str = ""  # custom background folder; empty = appdata/backgrounds
     save_history: bool = False  # keep a timestamped copy of every generated wallpaper
+    language: str = ""  # "zh" | "en"; empty = resolve from installer / system at startup
     schedule_modes: list[str] = field(  # empty = manual; values: "startup","interval","daily"
         default_factory=lambda: ["startup", "interval", "daily"])
     interval_hours: int = 3

@@ -8,13 +8,13 @@ from pathlib import Path
 
 import customtkinter as ctk
 
+from hopecasement.i18n import t
 from hopecasement.quotes import DEFAULT_QUOTES, load_quotes, quotes_path, save_quotes
 
 _NUM_FG = "#9B9A97"
 _NUM_RE = re.compile(r"^\d+\.\s")
 _SHIFT = 0x1
 _FILE_SIZE_WARN = 200
-_HINT_TEXT = "可直接输入、粘贴，或点左下角导入"
 
 _HEADING_RE = re.compile(r"^#{1,6}\s")
 _LIST_PREFIX_RE = re.compile(r"^(?:\d+[\.\)]\s+|[-*+]\s+)")
@@ -56,6 +56,7 @@ class QuotesTab(ctk.CTkFrame):
         super().__init__(master, fg_color="transparent", **kwargs)
         self._renumbering = False
         self._hint_on = False
+        self._hint_text = t("q_placeholder")
         self._build()
         self._load()
 
@@ -64,21 +65,21 @@ class QuotesTab(ctk.CTkFrame):
         # and never gets squeezed out by the expanding text frame.
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.pack(side="bottom", fill="x", padx=8, pady=(0, 8))
-        ctk.CTkButton(btn_row, text="导入（.txt/.md）", width=120,
+        ctk.CTkButton(btn_row, text=t("q_import"), width=120,
                       command=self._import).pack(side="left")
         ctk.CTkButton(
-            btn_row, text="打开文件", width=88,
+            btn_row, text=t("q_open_file"), width=88,
             fg_color="#EEEDE9", hover_color="#E4E3DE", text_color="#37352F",
             command=self._open_file,
         ).pack(side="left", padx=(8, 0))
-        ctk.CTkLabel(btn_row, text="建议每句少于 60 字",
+        ctk.CTkLabel(btn_row, text=t("q_len_hint"),
                      text_color="#9B9A97", font=ctk.CTkFont(size=12)).pack(side="left", padx=(10, 0))
         # Count sits at the far right; the rarely-used restore is a de-emphasized text button beside it.
         self._count_label = ctk.CTkLabel(
             btn_row, text="", text_color="#9B9A97", font=ctk.CTkFont(size=12))
         self._count_label.pack(side="right")
         ctk.CTkButton(
-            btn_row, text="恢复默认句子", width=96, height=24,
+            btn_row, text=t("q_restore"), width=110, height=24,
             fg_color="transparent", hover_color="#EEEDE9", text_color="#9B9A97",
             font=ctk.CTkFont(size=12), command=self._restore,
         ).pack(side="right", padx=(0, 12))
@@ -173,7 +174,7 @@ class QuotesTab(ctk.CTkFrame):
             return
         saved = self._text.index("insert")
         self._text.config(undo=False)
-        self._text.insert("end-1c", _HINT_TEXT, "hint")
+        self._text.insert("end-1c", self._hint_text, "hint")
         self._text.config(undo=True)
         self._text.mark_set("insert", saved)
         self._hint_on = True
@@ -182,8 +183,8 @@ class QuotesTab(ctk.CTkFrame):
         """True if the trailing slot has no real content (ignoring the placeholder)."""
         last = int(self._text.index("end-1c").split(".")[0])
         text = self._text.get(f"{last}.0", f"{last}.end")
-        if self._hint_on and text.endswith(_HINT_TEXT):
-            text = text[: -len(_HINT_TEXT)]
+        if self._hint_on and text.endswith(self._hint_text):
+            text = text[: -len(self._hint_text)]
         return not _strip_num(text).strip()
 
     def _update_hint(self) -> None:
@@ -268,7 +269,7 @@ class QuotesTab(ctk.CTkFrame):
                 self._text.tag_add("num", f"{i}.0", f"{i}.{len(m.group())}")
 
     def _update_count(self) -> None:
-        self._count_label.configure(text=f"共 {len(self._get_quotes())} 句")
+        self._count_label.configure(text=t("q_count").format(n=len(self._get_quotes())))
 
     # ── event handlers ─────────────────────────────────────────────────────
 
@@ -414,8 +415,8 @@ class QuotesTab(ctk.CTkFrame):
 
     def _get_quotes(self) -> list[str]:
         text = self._text.get("1.0", "end-1c")
-        if self._hint_on and text.endswith(_HINT_TEXT):
-            text = text[: -len(_HINT_TEXT)]
+        if self._hint_on and text.endswith(self._hint_text):
+            text = text[: -len(self._hint_text)]
         return [s for ln in text.split("\n") if (s := _strip_num(ln).strip())]
 
     def _set_quotes(self, quotes: list[str]) -> None:
@@ -457,13 +458,13 @@ class QuotesTab(ctk.CTkFrame):
 
     def _import(self) -> None:
         path = fd.askopenfilename(
-            filetypes=[("文本 / Markdown", "*.txt *.md"), ("所有文件", "*.*")])
+            filetypes=[(t("q_ft_textmd"), "*.txt *.md"), (t("q_ft_all"), "*.*")])
         if not path:
             return
         raw = Path(path).read_text(encoding="utf-8", errors="ignore")
         lines = raw.splitlines()
         if len(lines) > _FILE_SIZE_WARN:
-            if not mb.askyesno("文件较大", f"文件共 {len(lines)} 行，确认导入？"):
+            if not mb.askyesno(t("q_large_title"), t("q_large_body").format(n=len(lines))):
                 return
         parsed = [q for ln in lines if (q := _parse_import_line(ln)) is not None]
         existing = self._get_quotes()
@@ -471,8 +472,9 @@ class QuotesTab(ctk.CTkFrame):
         new_quotes = [q for q in parsed if q not in existing_set]
         self._replace_all_undoable(existing + new_quotes)
         mb.showinfo(
-            "导入完成",
-            f"共识别 {len(parsed)} 句，新增 {len(new_quotes)} 句，去重 {len(parsed) - len(new_quotes)} 句。",
+            t("q_import_done"),
+            t("q_import_done_body").format(
+                total=len(parsed), new=len(new_quotes), dup=len(parsed) - len(new_quotes)),
         )
 
     def _open_file(self) -> None:

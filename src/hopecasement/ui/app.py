@@ -6,8 +6,9 @@ from pathlib import Path
 
 import customtkinter as ctk
 
-from hopecasement import __version__
+from hopecasement import __version__, i18n, single_instance
 from hopecasement.config import Config, load_config, save_config
+from hopecasement.i18n import t
 from hopecasement.ui.tab_images import ImagesTab
 from hopecasement.ui.tab_quotes import QuotesTab
 from hopecasement.ui.tab_schedule import ScheduleTab
@@ -21,7 +22,7 @@ _ICON_PATH = Path(__file__).parent / "hopecasement.ico"
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title(f"来日窗笺  v{__version__}")
+        self.title(f"{i18n.app_name()}  v{__version__}")
         self.geometry(f"{_WIN_W}x{_WIN_H}")
         self.resizable(True, True)
         self._cfg = load_config()
@@ -94,9 +95,9 @@ class App(ctk.CTk):
         # space and never gets squeezed out by the expanding tabview.
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.pack(side="bottom", fill="x", padx=16, pady=(0, 16))
-        self._change_btn = ctk.CTkButton(btn_row, text="立即换壁纸", width=140, command=self._change_now)
+        self._change_btn = ctk.CTkButton(btn_row, text=t("change_now"), width=140, command=self._change_now)
         self._change_btn.pack(side="left")
-        ctk.CTkButton(btn_row, text="保存设置", width=140, command=self._save).pack(side="right")
+        ctk.CTkButton(btn_row, text=t("save"), width=140, command=self._save).pack(side="right")
         self._status_label = ctk.CTkLabel(
             btn_row, text="", text_color="#5A8F5A", font=ctk.CTkFont(size=13))
         self._status_label.pack(side="left", padx=16)
@@ -105,22 +106,23 @@ class App(ctk.CTk):
         tabs = ctk.CTkTabview(self)
         tabs.pack(side="top", fill="both", expand=True, padx=16, pady=(0, 8))
 
-        tabs.add("句子库")
-        tabs.add("背景图")
-        tabs.add("换壁纸设置")
+        name_quotes, name_images, name_schedule = t("tab_quotes"), t("tab_images"), t("tab_schedule")
+        tabs.add(name_quotes)
+        tabs.add(name_images)
+        tabs.add(name_schedule)
 
-        self._tab_quotes = QuotesTab(tabs.tab("句子库"))
+        self._tab_quotes = QuotesTab(tabs.tab(name_quotes))
         self._tab_quotes.pack(fill="both", expand=True)
 
-        self._tab_images = ImagesTab(tabs.tab("背景图"))
+        self._tab_images = ImagesTab(tabs.tab(name_images))
         self._tab_images.pack(fill="both", expand=True)
         self._tab_images.load_config(self._cfg)
 
-        self._tab_schedule = ScheduleTab(tabs.tab("换壁纸设置"))
+        self._tab_schedule = ScheduleTab(tabs.tab(name_schedule))
         self._tab_schedule.pack(fill="both", expand=True)
         self._tab_schedule.load_config(self._cfg)
 
-        tabs.set("换壁纸设置")
+        tabs.set(name_schedule)
 
     def _flash_status(self, text: str) -> None:
         """Show a brief non-modal confirmation next to the buttons, then clear it."""
@@ -144,14 +146,14 @@ class App(ctk.CTk):
             save_config(cfg)
             self._cfg = cfg
         except Exception as e:
-            mb.showerror("保存失败", str(e))
+            mb.showerror(t("dlg_save_failed"), str(e))
             return
         try:
             from hopecasement.scheduler import apply_schedule
             apply_schedule(cfg)
-            self._flash_status("✓ 已保存")
+            self._flash_status(t("status_saved"))
         except RuntimeError as e:
-            mb.showwarning("计划更新失败", f"设置已保存。\n换壁纸计划未能更新：\n{e}")
+            mb.showwarning(t("dlg_schedule_failed"), t("dlg_schedule_failed_body").format(err=e))
 
     def _change_now(self):
         # Read widget values on the UI thread, then render + set the wallpaper off
@@ -160,9 +162,9 @@ class App(ctk.CTk):
             self._tab_quotes.save()
             cfg = self._collect_config()
         except Exception as e:
-            mb.showerror("出错了", str(e))
+            mb.showerror(t("dlg_error"), str(e))
             return
-        self._change_btn.configure(state="disabled", text="更换中…")
+        self._change_btn.configure(state="disabled", text=t("changing"))
         # Worker only sets a plain attribute (GIL-atomic); the UI thread polls it.
         # Tkinter isn't thread-safe, so the worker never touches widgets.
         self._change_result: tuple[str, str] | None = None
@@ -184,13 +186,13 @@ class App(ctk.CTk):
             self.after(80, self._poll_change)
             return
         kind, msg = self._change_result
-        self._change_btn.configure(state="normal", text="立即换壁纸")
+        self._change_btn.configure(state="normal", text=t("change_now"))
         if kind == "nobg":
-            mb.showwarning("没有背景图", msg)
+            mb.showwarning(t("dlg_nobg"), msg)
         elif kind == "error":
-            mb.showerror("出错了", msg)
+            mb.showerror(t("dlg_error"), msg)
         else:
-            self._flash_status("✓ 已更换壁纸")
+            self._flash_status(t("status_changed"))
 
 
     def _has_unsaved_changes(self) -> bool:
@@ -204,10 +206,7 @@ class App(ctk.CTk):
 
     def _on_close(self) -> None:
         if self._has_unsaved_changes():
-            answer = mb.askyesnocancel(
-                "未保存的修改",
-                "有未保存的修改，是否保存后退出？\n\n【是】保存并退出，【否】直接退出。",
-            )
+            answer = mb.askyesnocancel(t("dlg_unsaved"), t("dlg_unsaved_body"))
             if answer is None:
                 return
             if answer:
@@ -217,10 +216,23 @@ class App(ctk.CTk):
                     save_config(cfg)
                     self._cfg = cfg
                 except Exception as e:
-                    mb.showerror("保存失败", str(e))
+                    mb.showerror(t("dlg_save_failed"), str(e))
                     return
         self.destroy()
 
 
 def run_ui() -> None:
+    # Resolve language once: saved config → installer's choice → system language.
+    cfg = load_config()
+    lang = cfg.language or i18n.installer_language() or i18n.system_language()
+    i18n.set_language(lang)
+    if cfg.language != lang:
+        cfg.language = lang
+        save_config(cfg)
+
+    # Keep a single window: focus the existing one and bail if already running.
+    if single_instance.already_running():
+        single_instance.focus_existing(f"{i18n.app_name()}  v{__version__}")
+        return
+
     App().mainloop()

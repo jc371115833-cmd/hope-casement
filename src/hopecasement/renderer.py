@@ -12,22 +12,15 @@ _FONTS_DIR = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
 _CANT_START_LINE = frozenset('，。、；：！？）】」』》〉…·—”’')
 _CANT_END_LINE = frozenset('（【「『《〈“‘')
 
-# Common Windows fonts: display name → font filename
-FONT_CHOICES: dict[str, str] = {
-    "微软雅黑": "msyh.ttc",
-    "黑体": "simhei.ttf",
-    "宋体": "simsun.ttc",
-    "楷体": "simkai.ttf",
-    "仿宋": "simfang.ttf",
-    "等线": "Deng.ttf",
-}
+# Common Windows fonts (display names are localized in i18n, keyed by filename).
+FONT_FILES = ["msyh.ttc", "simhei.ttf", "simsun.ttc", "simkai.ttf", "simfang.ttf", "Deng.ttf"]
 DEFAULT_FONT_FILE = "msyh.ttc"
 
 
-def available_fonts() -> dict[str, str]:
-    """FONT_CHOICES limited to fonts actually installed on this machine."""
-    found = {name: f for name, f in FONT_CHOICES.items() if (_FONTS_DIR / f).exists()}
-    return found or dict(FONT_CHOICES)
+def available_font_files() -> list[str]:
+    """FONT_FILES limited to fonts actually installed on this machine."""
+    found = [f for f in FONT_FILES if (_FONTS_DIR / f).exists()]
+    return found or list(FONT_FILES)
 
 
 def _screen_size() -> tuple[int, int]:
