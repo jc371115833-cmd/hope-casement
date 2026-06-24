@@ -1,5 +1,6 @@
 import ctypes
 import os
+from functools import lru_cache
 from pathlib import Path
 
 from PIL import Image, ImageColor, ImageDraw, ImageFont
@@ -30,10 +31,27 @@ def available_fonts() -> dict[str, str]:
 
 
 def _screen_size() -> tuple[int, int]:
+    """Physical pixel resolution of the primary monitor.
+
+    GetSystemMetrics returns the DPI-scaled (logical) size when the process isn't
+    DPI-aware — rendering at that size makes Windows upscale the wallpaper and blur
+    the text. DESKTOPHORZRES/VERTRES report the true physical pixels regardless.
+    """
     user32 = ctypes.windll.user32
+    gdi32 = ctypes.windll.gdi32
+    hdc = user32.GetDC(0)
+    try:
+        _DESKTOPVERTRES, _DESKTOPHORZRES = 117, 118
+        w = gdi32.GetDeviceCaps(hdc, _DESKTOPHORZRES)
+        h = gdi32.GetDeviceCaps(hdc, _DESKTOPVERTRES)
+    finally:
+        user32.ReleaseDC(0, hdc)
+    if w and h:
+        return w, h
     return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
 
+@lru_cache(maxsize=16)
 def _load_font(size: int, font_file: str = "") -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     candidates = ([font_file] if font_file else []) + _FONT_CANDIDATES
     for name in candidates:
@@ -64,37 +82,33 @@ def _cover_resize(img: Image.Image, target_w: int, target_h: int) -> Image.Image
     return img.crop((left, top, left + target_w, top + target_h))
 
 
-def _measure_text(font, text: str) -> tuple[int, int]:
-    bbox = font.getbbox(text)
-    return bbox[2] - bbox[0], bbox[3] - bbox[1]
-
-
 def _wrap_text(text: str, font, max_width: int, max_lines: int) -> list[str]:
-    w, _ = _measure_text(font, text)
-    if w <= max_width:
+    if font.getlength(text) <= max_width:
         return [text]
 
     lines: list[str] = []
     current = ""
+    current_w = 0.0
     truncated = False
     for char in text:
-        trial = current + char
-        tw, _ = _measure_text(font, trial)
-        if tw > max_width and current:
+        cw = font.getlength(char)
+        if current and current_w + cw > max_width:
             lines.append(current)
             if len(lines) >= max_lines:
                 truncated = True
                 break
-            current = char
+            current, current_w = char, cw
         else:
-            current = trial
+            current += char
+            current_w += cw
     else:
         if current and len(lines) < max_lines:
             lines.append(current)
 
     if truncated:
         last = lines[-1]
-        while last and _measure_text(font, last + "…")[0] > max_width:
+        ellipsis = font.getlength("…")
+        while last and font.getlength(last) + ellipsis > max_width:
             last = last[:-1]
         lines[-1] = last + "…"
 
