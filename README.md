@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/logo.png" alt="来日窗笺" width="120">
+
 # 来日窗笺 HopeCasement
 
 **定时把你的句子和背景随机组合，自动换成桌面壁纸**
