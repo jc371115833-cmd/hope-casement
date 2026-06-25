@@ -69,6 +69,7 @@ Type: filesandordirs; Name: "{app}\history"
 Type: files; Name: "{app}\config.json"
 Type: files; Name: "{app}\quotes.txt"
 Type: files; Name: "{app}\current_wallpaper.png"
-Type: files; Name: "{app}\change_error.log"
+Type: files; Name: "{app}\state.json"
+Type: files; Name: "{app}\error.log"
 Type: dirifempty; Name: "{app}"
 
