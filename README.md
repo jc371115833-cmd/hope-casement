@@ -12,9 +12,9 @@
 [![Release](https://img.shields.io/github/v/release/jc371115833-cmd/hope-casement)](../../releases)
 [![Stars](https://img.shields.io/github/stars/jc371115833-cmd/hope-casement?style=social)](../../stargazers)
 
-<img src="docs/screenshot.png" alt="壁纸效果" width="680">
+<img src="docs/screenshot-photo.png" alt="照片背景壁纸效果" width="680">
 
-<!-- 把效果图存到 docs/screenshot.png 即可显示。建议放一张实际生成的壁纸效果图，最好再附一张设置界面截图。 -->
+<img src="docs/screenshot-solid.png" alt="纯色背景壁纸效果" width="680">
 
 </div>
 
