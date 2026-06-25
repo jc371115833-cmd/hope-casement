@@ -8,7 +8,7 @@ from pathlib import Path
 
 import customtkinter as ctk
 
-from hopecasement.i18n import t
+from hopecasement.i18n import quote_count, t
 from hopecasement.quotes import DEFAULT_QUOTES, load_quotes, quotes_path, save_quotes
 
 _NUM_FG = "#9B9A97"
@@ -68,8 +68,9 @@ class QuotesTab(ctk.CTkFrame):
         ctk.CTkButton(btn_row, text=t("q_import"), width=120,
                       command=self._import).pack(side="left")
         ctk.CTkButton(
-            btn_row, text=t("q_open_file"), width=88,
-            fg_color="#EEEDE9", hover_color="#E4E3DE", text_color="#37352F",
+            btn_row, text=t("q_open_file"), width=96,
+            fg_color="transparent", border_width=1, border_color="#B0AFA8",
+            hover_color="#EEEDE9", text_color="#37352F",
             command=self._open_file,
         ).pack(side="left", padx=(8, 0))
         ctk.CTkLabel(btn_row, text=t("q_len_hint"),
@@ -79,8 +80,9 @@ class QuotesTab(ctk.CTkFrame):
             btn_row, text="", text_color="#9B9A97", font=ctk.CTkFont(size=12))
         self._count_label.pack(side="right")
         ctk.CTkButton(
-            btn_row, text=t("q_restore"), width=110, height=24,
-            fg_color="transparent", hover_color="#EEEDE9", text_color="#9B9A97",
+            btn_row, text=t("q_restore"), width=120, height=28,
+            fg_color="transparent", border_width=1, border_color="#B0AFA8",
+            hover_color="#EEEDE9", text_color="#37352F",
             font=ctk.CTkFont(size=12), command=self._restore,
         ).pack(side="right", padx=(0, 12))
 
@@ -269,7 +271,7 @@ class QuotesTab(ctk.CTkFrame):
                 self._text.tag_add("num", f"{i}.0", f"{i}.{len(m.group())}")
 
     def _update_count(self) -> None:
-        self._count_label.configure(text=t("q_count").format(n=len(self._get_quotes())))
+        self._count_label.configure(text=quote_count(len(self._get_quotes())))
 
     # ── event handlers ─────────────────────────────────────────────────────
 

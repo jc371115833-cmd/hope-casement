@@ -271,8 +271,9 @@ class ScheduleTab(ctk.CTkFrame):
         ctk.CTkCheckBox(history_frame, text=t("s_save_history"),
                         variable=self._save_history_var).pack(side="left")
         ctk.CTkButton(
-            history_frame, text=t("open_folder"), width=88, height=26,
-            fg_color="#EEEDE9", hover_color="#E4E3DE", text_color="#37352F",
+            history_frame, text=t("open_folder"), width=100, height=26,
+            fg_color="transparent", border_width=1, border_color="#B0AFA8",
+            hover_color="#EEEDE9", text_color="#37352F",
             command=self._open_history,
         ).pack(side="left", padx=(12, 0))
 

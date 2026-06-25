@@ -81,7 +81,7 @@ _TR = {
         "dlg_unsaved": "Unsaved changes",
         "dlg_unsaved_body": "You have unsaved changes. Save before exiting?\n\n[Yes] Save and exit, [No] Exit without saving.",
         "q_import": "Import (.txt/.md)", "q_open_file": "Open file",
-        "q_len_hint": "Keep each line under 60 characters", "q_count": "{n} quotes",
+        "q_len_hint": "≤ 60 chars / line", "q_count": "{n} quotes",
         "q_restore": "Restore defaults",
         "q_placeholder": "Type, paste, or use Import (bottom-left)",
         "q_ft_textmd": "Text / Markdown", "q_ft_all": "All files",
@@ -129,11 +129,20 @@ def get_language() -> str:
 
 
 def t(key: str) -> str:
-    return _TR.get(_lang, _TR[_DEFAULT]).get(key) or _TR[_DEFAULT].get(key, key)
+    table = _TR.get(_lang, _TR[_DEFAULT])
+    if key in table:  # an explicit "" is a valid translation, not a miss
+        return table[key]
+    return _TR[_DEFAULT].get(key, key)
 
 
 def app_name() -> str:
     return APP_NAME.get(_lang, APP_NAME[_DEFAULT])
+
+
+def quote_count(n: int) -> str:
+    if _lang == "en":
+        return f"{n} quote" if n == 1 else f"{n} quotes"
+    return t("q_count").format(n=n)
 
 
 def font_name(font_file: str) -> str:
