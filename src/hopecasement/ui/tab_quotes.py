@@ -9,7 +9,7 @@ from pathlib import Path
 import customtkinter as ctk
 
 from hopecasement.i18n import quote_count, t
-from hopecasement.quotes import DEFAULT_QUOTES, load_quotes, quotes_path, save_quotes
+from hopecasement.quotes import default_quotes, load_quotes, quotes_path, save_quotes
 
 _NUM_FG = "#9B9A97"
 _NUM_RE = re.compile(r"^\d+\.\s")
@@ -489,7 +489,7 @@ class QuotesTab(ctk.CTkFrame):
             pass
 
     def _restore(self) -> None:
-        self._replace_all_undoable(list(DEFAULT_QUOTES))
+        self._replace_all_undoable(default_quotes())
 
     def has_changes(self) -> bool:
         return self._get_quotes() != self._baseline

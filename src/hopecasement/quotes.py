@@ -2,18 +2,34 @@ import random
 import re
 from pathlib import Path
 
+from hopecasement import i18n
 from hopecasement.config import get_appdata_dir
 
-DEFAULT_QUOTES = [
-    "不积跬步，无以至千里。",
-    "日日新，又日新。",
-    "来日方长，以待岁月。",
-    "Stay hungry, stay foolish.",
-    "种一棵树最好的时间是十年前，其次是现在。",
-]
+# Seed quotes shipped on first run. All public-domain (ancient Chinese classics /
+# traditional English proverbs) to avoid any copyright concerns.
+_DEFAULT_QUOTES = {
+    "zh": [
+        "不积跬步，无以至千里。",
+        "千里之行，始于足下。",
+        "天行健，君子以自强不息。",
+        "学而不思则罔，思而不学则殆。",
+        "苟日新，日日新，又日新。",
+    ],
+    "en": [
+        "A journey of a thousand miles begins with a single step.",
+        "Well begun is half done.",
+        "Rome was not built in a day.",
+        "Little strokes fell great oaks.",
+        "Lost time is never found again.",
+    ],
+}
 
-_FALLBACK = "来日方长，以待岁月。"
 _BULLET_RE = re.compile(r"^[*\-+]\s+")
+
+
+def default_quotes() -> list[str]:
+    """Seed quotes for the current language (falls back to Chinese)."""
+    return list(_DEFAULT_QUOTES.get(i18n.get_language(), _DEFAULT_QUOTES["zh"]))
 
 
 def quotes_path() -> Path:
@@ -23,8 +39,9 @@ def quotes_path() -> Path:
 def load_quotes() -> list[str]:
     path = quotes_path()
     if not path.exists():
-        save_quotes(DEFAULT_QUOTES)
-        return list(DEFAULT_QUOTES)
+        defaults = default_quotes()
+        save_quotes(defaults)
+        return defaults
     result = []
     for ln in path.read_text(encoding="utf-8").splitlines():
         ln = ln.strip()
@@ -44,4 +61,4 @@ def save_quotes(quotes: list[str]) -> None:
 
 def get_random_quote() -> str:
     quotes = load_quotes()
-    return random.choice(quotes) if quotes else _FALLBACK
+    return random.choice(quotes) if quotes else default_quotes()[0]
