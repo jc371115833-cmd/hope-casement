@@ -44,6 +44,7 @@
 <img src="docs/demo-schedule.png" alt="定时自动换演示" width="340">
 
 > 不占后台，定时运行一次。
+
 ## 快速开始
 
 前往 [Release 页](../../releases) 下载安装包
