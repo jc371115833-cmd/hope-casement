@@ -57,9 +57,11 @@
 
 ***
 
-## 使用
+## 快速开始
 
-前往 [Releases](../../releases) 下载安装包，双击安装。打开后添加句子、背景、设定换壁纸频率，保存后台自动运行。
+1. 前往 [Release 页](../../releases) 下载安装包
+2. 双击安装（无需管理员权限）
+3. 打开后添加句子、选好背景、设定换壁纸频率，保存即可后台自动运行
 
 > 仅支持 Windows 10 / 11。背景图请确保你拥有合法使用权，可从 [Unsplash](https://unsplash.com)、[Pexels](https://pexels.com)、[Pixabay](https://pixabay.com) 等免费图库获取。
 
