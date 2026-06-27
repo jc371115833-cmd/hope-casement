@@ -23,19 +23,19 @@
 
 **🎲 随机组合** —— 你的句子 × 背景（图片或纯色），每次随机
 
-<img src="docs/demo-random.gif" alt="随机组合演示" width="680">
+<img src="docs/demo-random.gif" alt="随机组合演示" width="1024">
 
 <br />
 
 **✍️ 句子与背景自定义** —— 句子随手输入、粘贴或导入；背景用中意的图片或简洁纯色
 
-<img src="docs/demo-content.gif" alt="句子与背景自定义演示" width="680">
+<img src="docs/demo-content.gif" alt="句子与背景自定义演示" width="1024">
 
 <br />
 
 **🎨 样式可定制** —— 字体、颜色、阴影、对齐、位置随心调
 
-<img src="docs/demo-style.gif" alt="样式调整演示" width="680">
+<img src="docs/demo-style.gif" alt="样式调整演示" width="1024">
 
 <br />
 
