@@ -13,17 +13,13 @@
 
 </div>
 
-***
 
 ## 为什么选择来日窗笺
 
-想要的很简单：让喜欢的句子随机落在喜欢的壁纸上，日日更新——抬眼是窗，落字成笺，对来日满怀希望。
+很简单，让句子随机落在不同的壁纸上，定时更新——抬眼是窗，落字成笺，对来日满怀希望。
 
-***
 
 ## 功能特点
-
-<div align="center">
 
 **🎲 随机组合** —— 你的句子 × 背景（图片或纯色），每次随机
 
@@ -47,25 +43,17 @@
 
 <img src="docs/demo-schedule.png" alt="定时自动换演示" width="340">
 
-</div>
-
-> 🔒 **纯本地** —— 不联网、不注册、不收费、无广告
-
-***
 
 ## 快速开始
 
-1. 前往 [Release 页](../../releases) 下载安装包
-2. 双击安装（无需管理员权限）
-3. 打开后添加句子、选好背景、设定换壁纸频率，保存即可后台自动运行
+前往 [Release 页](../../releases) 下载安装包
 
-> 仅支持 Windows 10 / 11。背景图请确保你拥有合法使用权，可从 [Unsplash](https://unsplash.com)、[Pexels](https://pexels.com)、[Pixabay](https://pixabay.com) 等免费图库获取。
+> 目前仅支持 Windows 10 / 11
 
-***
 
 ## 参与开发
 
-从源码运行、项目结构与贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。欢迎提 [Issue](../../issues) 或 Pull Request。
+见 [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ***
 
