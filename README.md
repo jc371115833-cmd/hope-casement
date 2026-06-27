@@ -4,7 +4,7 @@
 
 # 来日窗笺 HopeCasement
 
-**定时随机组合你的句子和背景，自动换成桌面壁纸**
+**随机组合句子与背景，定时换壁纸**
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6?logo=windows\&logoColor=white)
