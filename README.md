@@ -11,10 +11,6 @@
 ![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python\&logoColor=white)
 [![Release](https://img.shields.io/github/v/release/jc371115833-cmd/hope-casement)](../../releases)
 
-<img src="docs/screenshot-photo.png" alt="照片背景壁纸效果" width="680">
-
-<img src="docs/screenshot-solid.png" alt="纯色背景壁纸效果" width="680">
-
 </div>
 
 ***
@@ -49,7 +45,7 @@
 
 **⏰ 定时自动换** —— 开机 / 定时 / 每隔几小时，设一次就不用管
 
-<img src="docs/demo-schedule.png" alt="定时自动换演示" width="680">
+<img src="docs/demo-schedule.png" alt="定时自动换演示" width="340">
 
 </div>
 
