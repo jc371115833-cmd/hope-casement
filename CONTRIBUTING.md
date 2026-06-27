@@ -23,6 +23,20 @@ uv run python -c "from hopecasement.changer import change_wallpaper; change_wall
 
 > 定时调度（`scheduler.py`）依赖打包后的 exe 路径，**仅在打包版中生效**，开发模式下无法测试。
 
+## 项目结构
+
+**技术栈**：Python · [customtkinter](https://github.com/TomSchimansky/CustomTkinter)（界面）· [Pillow](https://python-pillow.org/)（文字渲染）· Windows `schtasks.exe`（定时调度）· ctypes（设置壁纸）。
+
+**用户数据位置**：打包后存在 exe 同目录，开发模式下存在项目根目录的 `userdata\`。
+
+| 文件 / 目录                 | 用途                |
+| ----------------------- | ----------------- |
+| `config.json`           | 所有设置              |
+| `quotes.txt`            | 句子库，一行一句          |
+| `backgrounds\`          | 用户自定义背景图          |
+| `current_wallpaper.png` | 当前壁纸（程序自动覆盖）      |
+| `history\`              | 历史壁纸归档（开启「保存历史」后） |
+
 ## 分支与提交规范
 
 采用 [Conventional Commits](https://www.conventionalcommits.org/) 风格：`<类型>: <简述>`。常用类型：
@@ -46,20 +60,6 @@ uv run python -c "from hopecasement.changer import change_wallpaper; change_wall
 3. 完成修改，确保本地运行正常、符合代码规范。
 4. 提交 PR，标题遵循上面的提交规范，正文简述改动目的与影响。
 5. 等待维护者 Review；较大的改动建议先开 Issue 讨论方向。
-
-## 项目结构
-
-**技术栈**：Python · [customtkinter](https://github.com/TomSchimansky/CustomTkinter)（界面）· [Pillow](https://python-pillow.org/)（文字渲染）· Windows `schtasks.exe`（定时调度）· ctypes（设置壁纸）。
-
-**用户数据位置**：打包后存在 exe 同目录，开发模式下存在项目根目录的 `userdata\`。
-
-| 文件 / 目录                 | 用途                |
-| ----------------------- | ----------------- |
-| `config.json`           | 所有设置              |
-| `quotes.txt`            | 句子库，一行一句          |
-| `backgrounds\`          | 用户自定义背景图          |
-| `current_wallpaper.png` | 当前壁纸（程序自动覆盖）      |
-| `history\`              | 历史壁纸归档（开启「保存历史」后） |
 
 ## 问题反馈
 - 🐛 **Bug 反馈**： 提交[Issues](../../issues)&#x20;
