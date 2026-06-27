@@ -4,27 +4,22 @@
 
 ## 反馈问题 / 提建议
 
-- 发现 Bug 或有功能想法，请在 [Issues](../../issues) 提交。
-- 报告 Bug 时，尽量附上：你的 Windows 版本、复现步骤、期望结果与实际结果。若有报错，可附上安装目录下的 `error.log`。
+发现 Bug 或有功能想法，请在 [Issues](../../issues) 提交。报告 Bug 时尽量附上：
 
-## 贡献代码
+- 你的 Windows 版本
+- 复现步骤、期望结果与实际结果
+- 若有报错，附上安装目录下的 `error.log`
 
-1. Fork 本仓库并新建分支。
-2. 完成修改，确保能正常运行。
-3. 提交 Pull Request，并简要说明改动的目的。
-
-小改动可直接提 PR；较大的改动建议先开 Issue 讨论方向，避免白做。
-
-## 开发环境
+## 快速开始
 
 需要 Python 3.12+ 和 [uv](https://github.com/astral-sh/uv)。
 
 ```shell
 uv sync                              # 安装依赖
-uv run python -m hopecasement        # 运行 UI
+uv run python -m hopecasement        # 运行配置窗口
 ```
 
-测试换壁纸核心流程（不启动 UI）：
+只测试换壁纸核心流程（不启动 UI）：
 
 ```shell
 uv run python -c "from hopecasement.changer import change_wallpaper; change_wallpaper()"
@@ -32,17 +27,7 @@ uv run python -c "from hopecasement.changer import change_wallpaper; change_wall
 
 入口逻辑：`HopeCasement.exe` 打开配置窗口；`HopeCasement.exe --change` 直接换壁纸（供 Windows 任务计划程序调用）。
 
-## 用户数据位置
-
-打包成 exe 后，数据存在 exe 同目录；开发模式下存在项目根目录的 `userdata\`。
-
-| 文件 / 目录 | 用途 |
-|---|---|
-| `config.json` | 所有设置 |
-| `quotes.txt` | 句子库，一行一句 |
-| `backgrounds\` | 用户自定义背景图 |
-| `current_wallpaper.png` | 当前壁纸（程序自动覆盖） |
-| `history\` | 历史壁纸归档（开启「保存历史」后） |
+> 注意：定时调度（`scheduler.py`）依赖打包后的 exe 路径，**仅在打包版中生效**，开发模式下无法测试。
 
 ## 项目结构
 
@@ -61,9 +46,17 @@ src/hopecasement/
 └── ui/              # 配置窗口（customtkinter）
 ```
 
-## 技术栈
+**技术栈**：Python · [customtkinter](https://github.com/TomSchimansky/CustomTkinter)（界面）· [Pillow](https://python-pillow.org/)（文字渲染）· Windows `schtasks.exe`（定时调度）· ctypes（设置壁纸）。
 
-Python · [customtkinter](https://github.com/TomSchimansky/CustomTkinter)（界面）· [Pillow](https://python-pillow.org/)（文字渲染）· Windows `schtasks.exe`（定时调度）· ctypes（设置壁纸）。
+**用户数据位置**：打包后存在 exe 同目录，开发模式下存在项目根目录的 `userdata\`。
+
+| 文件 / 目录 | 用途 |
+|---|---|
+| `config.json` | 所有设置 |
+| `quotes.txt` | 句子库，一行一句 |
+| `backgrounds\` | 用户自定义背景图 |
+| `current_wallpaper.png` | 当前壁纸（程序自动覆盖） |
+| `history\` | 历史壁纸归档（开启「保存历史」后） |
 
 ## 代码规范
 
@@ -73,18 +66,45 @@ Python · [customtkinter](https://github.com/TomSchimansky/CustomTkinter)（界�
 - 函数职责单一，模块短小聚焦。
 - 入参与返回值都写类型注解。
 
-## 打包发布
+## 提交 Pull Request
 
-打包 exe（[PyInstaller](https://pyinstaller.org/) 配置已写好）：
+1. Fork 本仓库并新建分支。
+2. 完成修改，确保能正常运行、符合上述代码规范。
+3. 提交 PR，并简要说明改动的目的。
+
+小改动可直接提 PR；较大的改动建议先开 Issue 讨论方向，避免白做。
+
+## 打包与发布
+
+> 仅维护者发版时需要。
+
+**1. 同步版本号**（三处必须一致）：
+
+- `pyproject.toml` 的 `version`
+- `src/hopecasement/__init__.py` 的 `__version__`
+- `setup/Hopecasement.iss` 的 `MyAppVersion`
+
+**2. 打包 exe**（[PyInstaller](https://pyinstaller.org/) 配置已写好）：
 
 ```shell
 uv run pyinstaller HopeCasement.spec --clean
 ```
 
-制作安装包（需先打包 exe，使用 [Inno Setup](https://jrsoftware.org/isinfo.php)）：
+产物 `dist\HopeCasement.exe`，打完先运行确认无误。
+
+**3. 制作安装包**（使用 [Inno Setup](https://jrsoftware.org/isinfo.php)，需先完成第 2 步）：
 
 ```shell
 ISCC.exe setup\Hopecasement.iss
 ```
 
-产物在 `setup\HopeCasement.exe`。可选 [Inno Setup 简体中文汉化包](https://github.com/kira-96/Inno-Setup-Chinese-Simplified-Translation)。
+产物 `setup\HopeCasement.exe`。可选 [Inno Setup 简体中文汉化包](https://github.com/kira-96/Inno-Setup-Chinese-Simplified-Translation)。
+
+**4. 打 tag 并发布**：
+
+```shell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+在 GitHub 仓库 Releases 页新建 Release，选择该 tag，上传 `setup\HopeCasement.exe` 作为附件。
