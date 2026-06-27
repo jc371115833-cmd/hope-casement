@@ -1,3 +1,5 @@
+**简体中文** | [English](CONTRIBUTING.en.md)
+
 # 贡献指南
 
 感谢你对「来日窗笺 HopeCasement」的关注！本指南会帮助你了解如何参与项目开发。

@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 <div align="center">
 
 <img src="docs/logo.png" alt="来日窗笺" width="120">
@@ -5,6 +7,8 @@
 # 来日窗笺 HopeCasement
 
 **随机组合句子与背景，定时换壁纸**
+
+[功能特点](#功能特点) · [快速开始](#快速开始) · [反馈问题](../../issues) · [参与开发](CONTRIBUTING.md)
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6?logo=windows\&logoColor=white)
