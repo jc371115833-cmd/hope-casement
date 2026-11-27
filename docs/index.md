@@ -21,8 +21,8 @@
 
 | 我想做什么 | 去哪里 |
 | --- | --- |
-| 启动源码版，接手一个改动 | [本地开发](development/local-setup.md) · [AI 开发入口](../AGENTS.md) |
-| 找到负责某个功能的代码和测试 | [架构与功能对照](architecture/overview.md) |
+| 启动源码版或提交改动 | [本地开发](development/local-setup.md) · [贡献指南](../CONTRIBUTING.md) |
+| 接手任务，找到对应的代码、手册和测试 | [仓库开发约定](../AGENTS.md) · [功能与源码对照表](architecture/overview.md#按改动定位) |
 | 修改设置字段、迁移规则或数据目录 | [配置与数据兼容](architecture/configuration-and-data.md) |
 | 验证一次改动 | [自动化回归与 Windows 验证](development/testing.md) |
 | 构建安装包、验证升级并发布 | [打包与发布](development/release.md) |
