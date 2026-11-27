@@ -1,4 +1,5 @@
 import re
+import sys
 import threading
 import tkinter.messagebox as mb
 from dataclasses import asdict
@@ -139,7 +140,8 @@ class App(ctk.CTk):
         base.update(values)
         return Config(**base)
 
-    def _save(self):
+    def _save(self) -> bool:
+        """Persist the edits and apply the plan. Return whether a pending close can finish."""
         try:
             self._tab_quotes.save()
             cfg = self._collect_config()
@@ -147,13 +149,16 @@ class App(ctk.CTk):
             self._cfg = cfg
         except Exception as e:
             mb.showerror(t("dlg_save_failed"), str(e))
-            return
+            return False
         try:
             from hopecasement.scheduler import apply_schedule
             apply_schedule(cfg)
-            self._flash_status(t("status_saved"))
-        except RuntimeError as e:
+        except (OSError, RuntimeError) as e:
             mb.showwarning(t("dlg_schedule_failed"), t("dlg_schedule_failed_body").format(err=e))
+            # A source checkout can save edits, but has no executable to register.
+            return not getattr(sys, "frozen", False)
+        self._flash_status(t("status_saved"))
+        return True
 
     def _change_now(self):
         # Read widget values on the UI thread, then render + set the wallpaper off
@@ -209,15 +214,8 @@ class App(ctk.CTk):
             answer = mb.askyesnocancel(t("dlg_unsaved"), t("dlg_unsaved_body"))
             if answer is None:
                 return
-            if answer:
-                try:
-                    self._tab_quotes.save()
-                    cfg = self._collect_config()
-                    save_config(cfg)
-                    self._cfg = cfg
-                except Exception as e:
-                    mb.showerror(t("dlg_save_failed"), str(e))
-                    return
+            if answer and not self._save():
+                return
         self.destroy()
 
 
