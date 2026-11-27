@@ -4,40 +4,16 @@
 
 Thanks for your interest in **HopeCasement 来日窗笺**! This guide will help you get started with development.
 
-## Development Setup
+## Getting started
 
-The project currently targets **Windows 10 / 11** only, and requires **Python 3.12+** and [uv](https://github.com/astral-sh/uv).
+On Windows, use Python 3.12 and uv. From the root of your checkout, run:
 
-```shell
-git clone https://github.com/jc371115833-cmd/hope-casement.git
-cd hope-casement
-uv sync                              # install dependencies
-uv run python -m hopecasement        # launch the config window
+```powershell
+uv sync --locked
+uv run hopecasement
 ```
 
-Test just the wallpaper-change flow (without the UI):
-
-```shell
-uv run python -c "from hopecasement.changer import change_wallpaper; change_wallpaper()"
-```
-
-Entry points: `HopeCasement.exe` opens the config window; `HopeCasement.exe --change` changes the wallpaper directly (called by Windows Task Scheduler).
-
-> Scheduling (`scheduler.py`) relies on the packaged exe path, so it **only works in the built version** and cannot be tested in development mode.
-
-## Project Structure
-
-**Tech stack**: Python · [customtkinter](https://github.com/TomSchimansky/CustomTkinter) (UI) · [Pillow](https://python-pillow.org/) (text rendering) · Windows `schtasks.exe` (scheduling) · ctypes (setting the wallpaper).
-
-**User data location**: next to the exe when packaged; in `userdata\` at the project root in development mode.
-
-| File / Folder           | Purpose                                  |
-| ----------------------- | ---------------------------------------- |
-| `config.json`           | All settings                             |
-| `quotes.txt`            | Quote library, one line per quote        |
-| `backgrounds\`          | User-provided background images          |
-| `current_wallpaper.png` | Current wallpaper (overwritten by app)   |
-| `history\`              | Wallpaper archive (when "Save history" is on) |
+Run `uv run --locked python -m unittest discover -s tests -v` for regression tests. They use temporary files and stand-ins for Windows system calls. See the [engineering guides (Chinese)](docs/index.md#维护软件) for the architecture, test scope and installer build. When behavior changes, update its guide and regression tests in the same PR and describe what you verified on Windows.
 
 ## Branch & Commit Convention
 
@@ -57,7 +33,7 @@ Example: `feat: add font selection` / `fix: resolve blurry text on high DPI`
 
 ## Pull Request Flow
 
-1. Search [Issues](../../issues) / [Pull Requests](../../pulls) first to avoid duplicate work.
+1. Search [Issues](https://github.com/jc371115833-cmd/hope-casement/issues) / [Pull Requests](https://github.com/jc371115833-cmd/hope-casement/pulls) first to avoid duplicate work.
 2. Fork the repo and branch off `main`.
 3. Make your changes; make sure they run locally and follow the code style.
 4. Open a PR with a title following the commit convention, and describe the purpose and impact in the body.
@@ -65,6 +41,6 @@ Example: `feat: add font selection` / `fix: resolve blurry text on high DPI`
 
 ## Feedback
 
-- 🐛 **Bug reports**: open an [Issue](../../issues)
-- 💡 **Feature requests**: open an [Issue](../../issues)
-- 💬 **General discussion**: head to [Discussions](../../discussions)
+- 🐛 **Bug reports**: open an [Issue](https://github.com/jc371115833-cmd/hope-casement/issues)
+- 💡 **Feature requests**: open an [Issue](https://github.com/jc371115833-cmd/hope-casement/issues)
+- 💬 **General discussion**: head to [Discussions](https://github.com/jc371115833-cmd/hope-casement/discussions)
