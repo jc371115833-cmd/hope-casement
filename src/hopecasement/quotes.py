@@ -4,6 +4,7 @@ from pathlib import Path
 
 from hopecasement import i18n
 from hopecasement.config import get_appdata_dir
+from hopecasement.storage import atomic_output
 
 # Seed quotes shipped on first run. All public-domain (ancient Chinese classics /
 # traditional English proverbs) to avoid any copyright concerns.
@@ -38,12 +39,17 @@ def quotes_path() -> Path:
 
 def load_quotes() -> list[str]:
     path = quotes_path()
-    if not path.exists():
+    try:
+        raw = path.read_text(encoding="utf-8-sig")
+    except FileNotFoundError:
         defaults = default_quotes()
-        save_quotes(defaults)
-        return defaults
+        try:
+            save_quotes(defaults, overwrite=False)
+            return defaults
+        except FileExistsError:
+            raw = path.read_text(encoding="utf-8-sig")
     result = []
-    for ln in path.read_text(encoding="utf-8").splitlines():
+    for ln in raw.splitlines():
         ln = ln.strip()
         if not ln:
             continue
@@ -53,10 +59,9 @@ def load_quotes() -> list[str]:
     return result
 
 
-def save_quotes(quotes: list[str]) -> None:
-    quotes_path().write_text(
-        "\n".join(f"* {q}" for q in quotes), encoding="utf-8"
-    )
+def save_quotes(quotes: list[str], *, overwrite: bool = True) -> None:
+    with atomic_output(quotes_path(), overwrite=overwrite) as path:
+        path.write_text("\n".join(f"* {q}" for q in quotes), encoding="utf-8")
 
 
 def get_random_quote() -> str:

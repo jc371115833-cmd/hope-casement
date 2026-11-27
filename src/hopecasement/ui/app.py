@@ -8,7 +8,7 @@ from pathlib import Path
 import customtkinter as ctk
 
 from hopecasement import __version__, i18n, single_instance
-from hopecasement.config import Config, load_config, save_config
+from hopecasement.config import Config, load_config, normalize_daily_time, save_config
 from hopecasement.i18n import t
 from hopecasement.ui.tab_images import ImagesTab
 from hopecasement.ui.tab_quotes import QuotesTab
@@ -21,12 +21,13 @@ _ICON_PATH = Path(__file__).parent / "hopecasement.ico"
 
 
 class App(ctk.CTk):
-    def __init__(self):
+    def __init__(self, cfg: Config | None = None):
         super().__init__()
         self.title(f"{i18n.app_name()}  v{__version__}")
         self.geometry(f"{_WIN_W}x{_WIN_H}")
         self.resizable(True, True)
-        self._cfg = load_config()
+        self._cfg = cfg if cfg is not None else load_config()
+        self._schedule_pending = False
         self._build()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.bind("<Map>", self._on_restore)
@@ -143,10 +144,15 @@ class App(ctk.CTk):
     def _save(self) -> bool:
         """Persist the edits and apply the plan. Return whether a pending close can finish."""
         try:
-            self._tab_quotes.save()
             cfg = self._collect_config()
+            if normalize_daily_time(cfg.daily_time) is None:
+                if "daily" in cfg.schedule_modes:
+                    raise ValueError(t("invalid_daily_time"))
+                cfg.daily_time = self._cfg.daily_time
+            self._tab_quotes.save()
             save_config(cfg)
             self._cfg = cfg
+            self._tab_schedule.load_config(cfg)
         except Exception as e:
             mb.showerror(t("dlg_save_failed"), str(e))
             return False
@@ -154,9 +160,11 @@ class App(ctk.CTk):
             from hopecasement.scheduler import apply_schedule
             apply_schedule(cfg)
         except (OSError, RuntimeError) as e:
+            self._schedule_pending = bool(getattr(sys, "frozen", False))
             mb.showwarning(t("dlg_schedule_failed"), t("dlg_schedule_failed_body").format(err=e))
             # A source checkout can save edits, but has no executable to register.
-            return not getattr(sys, "frozen", False)
+            return not self._schedule_pending
+        self._schedule_pending = False
         self._flash_status(t("status_saved"))
         return True
 
@@ -173,7 +181,8 @@ class App(ctk.CTk):
         # Worker only sets a plain attribute (GIL-atomic); the UI thread polls it.
         # Tkinter isn't thread-safe, so the worker never touches widgets.
         self._change_result: tuple[str, str] | None = None
-        threading.Thread(target=self._change_worker, args=(cfg,), daemon=True).start()
+        # Finish an accepted change even if the window closes during rendering.
+        threading.Thread(target=self._change_worker, args=(cfg,), daemon=False).start()
         self.after(80, self._poll_change)
 
     def _change_worker(self, cfg: Config) -> None:
@@ -199,38 +208,30 @@ class App(ctk.CTk):
         else:
             self._flash_status(t("status_changed"))
 
-
     def _has_unsaved_changes(self) -> bool:
-        try:
-            return (
-                asdict(self._collect_config()) != asdict(self._cfg)
-                or self._tab_quotes.has_changes()
-            )
-        except Exception:
-            return False
+        return self._collect_config() != self._cfg or self._tab_quotes.has_changes()
 
     def _on_close(self) -> None:
         if self._has_unsaved_changes():
-            answer = mb.askyesnocancel(t("dlg_unsaved"), t("dlg_unsaved_body"))
-            if answer is None:
-                return
-            if answer and not self._save():
-                return
-        self.destroy()
+            prompt = (t("dlg_unsaved"), t("dlg_unsaved_body"))
+        elif self._schedule_pending:
+            prompt = (t("dlg_schedule_failed"), t("dlg_retry_schedule"))
+        else:
+            self.destroy()
+            return
+        answer = mb.askyesnocancel(*prompt)
+        if answer is False or (answer is True and self._save()):
+            self.destroy()
 
 
 def run_ui() -> None:
     # Resolve language once: saved config → installer's choice → system language.
     cfg = load_config()
-    lang = cfg.language or i18n.installer_language() or i18n.system_language()
-    i18n.set_language(lang)
-    if cfg.language != lang:
-        cfg.language = lang
-        save_config(cfg)
+    cfg.language = i18n.select_language(cfg.language)
 
     # Keep a single window: focus the existing one and bail if already running.
     if single_instance.already_running():
         single_instance.focus_existing(f"{i18n.app_name()}  v{__version__}")
         return
 
-    App().mainloop()
+    App(cfg).mainloop()

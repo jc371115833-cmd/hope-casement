@@ -41,6 +41,31 @@ class ConfigMigrationTests(unittest.TestCase):
         self.path.write_text('{"schedule_mode":"daily"}', encoding="utf-8")
         self.assertEqual(config.load_config().schedule_modes, ["daily"])
 
+    def test_font_size_keeps_current_percentages_and_converts_old_pixels(self):
+        for size in (16, 18.5, 20):
+            with self.subTest(size=size):
+                config.save_config(config.Config(font_size=size))
+                self.assertEqual(config.load_config().font_size, size)
+                self.path.write_text(json.dumps({"font_size": size, "text_position": "center"}))
+                self.assertEqual(config.load_config().font_size, round(size / 10.8))
+
+    def test_invalid_settings_keep_valid_values_from_the_same_file(self):
+        mixed = {
+            "font_size": "large", "text_position": [], "line_spacing": 0,
+            "background_colors": ["#abc", 42, "invalid", "#ffff", "rgb(999,0,0)"],
+            "font_color": "#ffeezz", "language": "unavailable", "text_align": "sideways",
+            "daily_time": "4:zz", "show_text": "false", "text_y": 65,
+        }
+        self.path.write_text(json.dumps(mixed), encoding="utf-8-sig")
+        cfg = config.load_config()
+        self.assertEqual(cfg, config.Config(background_colors=["#AABBCC"], text_y=65))
+
+    def test_wrong_json_root_or_encoding_falls_back_to_defaults(self):
+        for raw in (b"null", b"[]", b'"hello"', b"\xff"):
+            with self.subTest(raw=raw):
+                self.path.write_bytes(raw)
+                self.assertEqual(config.load_config(), config.Config())
+
     def test_modern_settings_take_precedence_when_both_formats_are_present(self):
         settings = {
             "schedule_modes": ["interval", "daily"],

@@ -35,7 +35,7 @@ class SchedulerTests(unittest.TestCase):
         scheduler.apply_schedule(Config(interval_hours=1, interval_minutes=15, daily_time="19:45"))
 
         self.registry.SetValueEx.assert_called_once_with(
-            self.registry.OpenKey.return_value.__enter__.return_value,
+            self.registry.CreateKeyEx.return_value.__enter__.return_value,
             "HopeCasement", 0, self.registry.REG_SZ, f'"{self.exe}" --change',
         )
         self.assertEqual(set(self.tasks), {
@@ -64,3 +64,18 @@ class SchedulerTests(unittest.TestCase):
             scheduler.apply_schedule(Config())
         self.commands.assert_not_called()
         self.registry.OpenKey.assert_not_called()
+        self.registry.CreateKeyEx.assert_not_called()
+
+    def test_disable_ignores_absent_tasks_and_reports_permission_failures(self):
+        self.commands.side_effect = [
+            subprocess.CompletedProcess([], 0x80070002, "", ""),
+            subprocess.CompletedProcess([], 0x80070005, "", "Access denied"),
+        ]
+        with self.assertRaisesRegex(RuntimeError, r"ChangeAtTime.*0x80070005"):
+            scheduler.apply_schedule(Config(schedule_modes=[]))
+
+    def test_disable_startup_reports_registry_permission_failure(self):
+        self.registry.DeleteValue.side_effect = PermissionError("Access denied")
+        with self.assertRaisesRegex(RuntimeError, "Access denied"):
+            scheduler.apply_schedule(Config(schedule_modes=[]))
+        self.assertEqual(len(self.deleted), 2)

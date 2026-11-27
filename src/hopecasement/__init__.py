@@ -1,6 +1,7 @@
 import sys
+from importlib.metadata import version
 
-__version__ = "0.1.0"
+__version__ = version("hopecasement")
 
 
 def _log_change_error() -> None:
@@ -18,17 +19,23 @@ def _log_change_error() -> None:
         pass
 
 
-def main() -> None:
+def main() -> int:
     if "--change" in sys.argv:
-        from hopecasement.changer import change_wallpaper
         try:
-            change_wallpaper()
+            from hopecasement import i18n
+            from hopecasement.changer import change_wallpaper
+            from hopecasement.config import load_config
+            cfg = load_config()
+            i18n.select_language(cfg.language)
+            change_wallpaper(cfg)
         except Exception:
             _log_change_error()
+            return 1
     else:
         from hopecasement.ui.app import run_ui
         run_ui()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

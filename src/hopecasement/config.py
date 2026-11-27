@@ -1,7 +1,12 @@
 import json
+import re
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+
+from PIL import ImageColor
+
+from hopecasement.storage import atomic_output
 
 
 @dataclass
@@ -54,38 +59,81 @@ _POS_MAP = {
 }
 
 
-def _migrate(data: dict) -> dict:
-    if "font_size" in data and data["font_size"] > 15:
-        data["font_size"] = max(1, round(data["font_size"] / 10.8))
-    if "text_position" in data and "text_x" not in data:
-        data["text_x"], data["text_y"] = _POS_MAP.get(data.pop("text_position"), (50, 88))
-    else:
-        data.pop("text_position", None)
-    data.pop("text_padding", None)
+def _migrate(data: dict) -> None:
+    size = data.get("font_size")
+    legacy_position = "text_position" in data or "text_padding" in data
+    if type(size) in (int, float) and 15 < size <= sys.maxsize:
+        if size > 20 or (legacy_position and "text_x" not in data):
+            data["font_size"] = max(1, round(size / 10.8))
+    if isinstance(data.get("text_position"), str) and "text_x" not in data:
+        data["text_x"], data["text_y"] = _POS_MAP.get(data["text_position"], (50, 88))
     if "schedule_mode" in data and "schedule_modes" not in data:
-        old_mode = data.pop("schedule_mode")
+        old_mode = data["schedule_mode"]
         data["schedule_modes"] = [] if old_mode == "manual" else [old_mode]
-    else:
-        data.pop("schedule_mode", None)
-    return data
+
+
+def _rgb(value: str) -> str | None:
+    try:
+        r, g, b = ImageColor.getrgb(value)
+    except (ValueError, OverflowError):
+        return None
+    if not all(0 <= channel <= 255 for channel in (r, g, b)):
+        return None
+    return f"#{r:02X}{g:02X}{b:02X}"
+
+
+_RANGES = {
+    "font_size": (1, 20), "line_spacing": (1, 3), "text_width_ratio": (0.2, 1),
+    "text_x": (0, 100), "text_y": (0, 100), "text_bg_opacity": (0, 100),
+    "interval_minutes": (0, 59), "interval_hours": (0, float("inf")),
+}
+
+_CHOICES = {"text_align": ("left", "center", "right"), "language": ("", "zh", "en")}
+
+
+def normalize_daily_time(value: str) -> str | None:
+    match = re.fullmatch(r"([01]?[0-9]|2[0-3]):([0-5][0-9])", value.strip())
+    return f"{int(match[1]):02}:{match[2]}" if match else None
 
 
 def load_config() -> Config:
     path = _config_path()
-    if not path.exists():
-        return Config()
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (ValueError, RecursionError, FileNotFoundError):
         return Config()
-    data = _migrate(data)
-    defaults = asdict(Config())
-    defaults.update({k: v for k, v in data.items() if k in defaults})
-    return Config(**defaults)
+    if not isinstance(data, dict):
+        return Config()
+    _migrate(data)
+    cfg = Config()
+    for key, default in asdict(cfg).items():
+        value = data.get(key)
+        if isinstance(default, float):
+            if type(value) not in (float, int):
+                continue
+        elif type(value) is not type(default):
+            continue
+        if key in _RANGES:
+            low, high = _RANGES[key]
+            if not low <= value <= high:
+                continue
+        if key in _CHOICES and value not in _CHOICES[key]:
+            continue
+        if key in ("font_color", "shadow_color", "text_bg_color"):
+            value = _rgb(value) or default
+        elif key == "background_colors":
+            colors = [rgb for item in value if isinstance(item, str) and (rgb := _rgb(item))]
+            value = colors if colors or not value else default
+        elif key == "schedule_modes":
+            value = [mode for mode in value if mode in ("startup", "interval", "daily")]
+        elif key == "daily_time":
+            value = normalize_daily_time(value) or default
+        elif key in ("images_dir", "font_file") and "\0" in value:
+            continue
+        setattr(cfg, key, value)
+    return cfg
 
 
 def save_config(cfg: Config) -> None:
-    _config_path().write_text(
-        json.dumps(asdict(cfg), ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    with atomic_output(_config_path()) as path:
+        path.write_text(json.dumps(asdict(cfg), ensure_ascii=False, indent=2), encoding="utf-8")

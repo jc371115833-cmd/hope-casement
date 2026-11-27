@@ -1,7 +1,7 @@
 import os
-import shutil
 import tkinter.colorchooser as cc
 import tkinter.filedialog as fd
+import tkinter.messagebox as mb
 from collections.abc import Callable
 from pathlib import Path
 
@@ -12,6 +12,7 @@ from hopecasement.i18n import t
 from hopecasement.image import (
     SUPPORTED_IMAGE_EXTENSIONS,
     get_user_images_dir,
+    import_image,
     scan_user_images,
 )
 from hopecasement.ui.utils import normalize_hex_color
@@ -182,26 +183,27 @@ class ImagesTab(ctk.CTkFrame):
 
     def _open_folder(self) -> None:
         folder = get_user_images_dir(self._images_dir)
-        folder.mkdir(parents=True, exist_ok=True)
         try:
+            folder.mkdir(parents=True, exist_ok=True)
             os.startfile(folder)
-        except OSError:
-            pass
+        except OSError as exc:
+            mb.showerror(t("dlg_error"), str(exc))
 
     def _add_image(self) -> None:
         paths = fd.askopenfilenames(
             title=t("img_pick_images"),
             filetypes=[
                 (t("img_ft_images"), " ".join(f"*{e}" for e in SUPPORTED_IMAGE_EXTENSIONS)),
-                (t("q_ft_all"), "*.*"),
             ],
         )
         if not paths:
             return
         dest = get_user_images_dir(self._images_dir)
-        dest.mkdir(parents=True, exist_ok=True)
-        for p in paths:
-            shutil.copy2(p, dest / Path(p).name)
+        try:
+            for filename in paths:
+                import_image(Path(filename), dest)
+        except OSError as exc:
+            mb.showerror(t("dlg_error"), str(exc))
         self._refresh()
 
     def _change_folder(self) -> None:
@@ -215,7 +217,10 @@ class ImagesTab(ctk.CTkFrame):
 
     def _dir_mtime(self) -> float:
         d = get_user_images_dir(self._images_dir)
-        return d.stat().st_mtime if d.exists() else 0.0
+        try:
+            return d.stat().st_mtime
+        except OSError:
+            return 0.0
 
     def poll_reload(self) -> None:
         """Re-scan if the folder changed on disk (external add/remove)."""

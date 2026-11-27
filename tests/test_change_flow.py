@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from PIL import Image
 
-from hopecasement import main
+from hopecasement import i18n, main
 from hopecasement.config import Config, load_config, save_config
 from hopecasement.ui.app import App
 
@@ -16,6 +16,7 @@ from hopecasement.ui.app import App
 class ChangeFlowTests(unittest.TestCase):
     def setUp(self):
         self.data = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        self.addCleanup(i18n.set_language, i18n.get_language())
         for module in ("config", "quotes", "image", "renderer"):
             self.enterContext(patch(f"hopecasement.{module}.get_appdata_dir", return_value=self.data))
         self.enterContext(patch("hopecasement.renderer._screen_size", return_value=(320, 180)))
@@ -26,7 +27,7 @@ class ChangeFlowTests(unittest.TestCase):
         (self.data / "quotes.txt").write_text("* Example quote", encoding="utf-8")
 
     def test_scheduled_entry_uses_saved_settings_and_archives_applied_image(self):
-        main()
+        self.assertEqual(main(), 0)
         output = self.data / "current_wallpaper.png"
         self.set_desktop.assert_called_once_with(output)
         with Image.open(output) as image:
@@ -38,9 +39,15 @@ class ChangeFlowTests(unittest.TestCase):
 
     def test_scheduled_failure_logs_error_without_archiving(self):
         self.set_desktop.side_effect = OSError("desktop update failed")
-        main()
+        self.assertEqual(main(), 1)
         self.assertIn("desktop update failed", (self.data / "error.log").read_text(encoding="utf-8"))
         self.assertFalse((self.data / "history").exists())
+
+    def test_scheduled_first_run_seeds_quotes_in_the_configured_language(self):
+        (self.data / "quotes.txt").unlink()
+        save_config(replace(self.cfg, language="en", show_text=True))
+        self.assertEqual(main(), 0)
+        self.assertIn("Rome", (self.data / "quotes.txt").read_text(encoding="utf-8"))
 
     def test_change_now_uses_window_style_without_overwriting_saved_plan(self):
         app = object.__new__(App)

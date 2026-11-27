@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 import customtkinter
+from PyInstaller.utils.hooks import copy_metadata
 
 ctk_path = os.path.dirname(customtkinter.__file__)
 
@@ -8,7 +9,7 @@ a = Analysis(
     ['src\\hopecasement\\__init__.py'],
     pathex=['src'],
     binaries=[],
-    datas=[
+    datas=copy_metadata('hopecasement') + [
         (os.path.join(ctk_path, 'assets'), 'customtkinter\\assets'),
         ('src\\hopecasement\\ui\\theme.json', 'hopecasement\\ui'),
         ('src\\hopecasement\\ui\\hopecasement.ico', 'hopecasement\\ui'),
@@ -45,5 +46,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='setup\\hopecasement.ico',
+    icon='src\\hopecasement\\ui\\hopecasement.ico',
 )

@@ -3,9 +3,10 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from PIL import Image, ImageColor, ImageDraw, ImageFont
+from PIL import Image, ImageColor, ImageDraw, ImageFont, ImageOps
 
 from hopecasement.config import Config, get_appdata_dir
+from hopecasement.storage import atomic_output
 
 _FONT_CANDIDATES = ["msyh.ttc", "msyhbd.ttc", "simhei.ttf", "simsun.ttc"]
 _FONTS_DIR = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
@@ -50,8 +51,11 @@ def _load_font(size: int, font_file: str = "") -> ImageFont.FreeTypeFont | Image
     for name in candidates:
         path = _FONTS_DIR / name
         if path.exists():
-            return ImageFont.truetype(str(path), size)
-    return ImageFont.load_default()
+            try:
+                return ImageFont.truetype(str(path), size)
+            except OSError:
+                continue
+    return ImageFont.load_default(size=size)
 
 
 def _draw_text_line(draw, line: str, lx: float, ly: float, font, gap: float, fill) -> None:
@@ -65,18 +69,9 @@ def _draw_text_line(draw, line: str, lx: float, ly: float, font, gap: float, fil
         cx += font.getlength(ch) + gap
 
 
-def _cover_resize(img: Image.Image, target_w: int, target_h: int) -> Image.Image:
-    """Scale to cover the target size (preserve aspect), then center-crop to it."""
-    iw, ih = img.size
-    scale = max(target_w / iw, target_h / ih)
-    img = img.resize((max(1, round(iw * scale)), max(1, round(ih * scale))), Image.LANCZOS)
-    left = (img.width - target_w) // 2
-    top = (img.height - target_h) // 2
-    return img.crop((left, top, left + target_w, top + target_h))
-
-
 def _wrap_text(text: str, font, max_width: int, max_lines: int) -> list[str]:
-    if font.getlength(text) <= max_width:
+    # Measure short lines with kerning; long input can be truncated during wrapping.
+    if len(text) <= max_width and font.getlength(text) <= max_width:
         return [text]
 
     lines: list[str] = []
@@ -155,8 +150,14 @@ def compose_wallpaper(
         img = Image.new("RGBA", size, (*rgb, 255))
     else:
         with Image.open(background) as source:
-            source.draft("RGB", size)  # fast approximate downscale while decoding JPEG
-            img = _cover_resize(source.convert("RGBA"), *size)
+            # JPEG draft reduces decoding cost; sizing uses the stored pixel orientation.
+            orientation = source.getexif().get(274, 1)
+            source.draft("RGB", size[::-1] if orientation in (5, 6, 7, 8) else size)
+            ImageOps.exif_transpose(source, in_place=True)
+            # Fit crops the source region while resizing, including very wide panoramas.
+            img = ImageOps.fit(source.convert("RGBA"), size, method=Image.Resampling.LANCZOS)
+    if not cfg.show_text or not quote:
+        return img.convert("RGB")
     img_w, img_h = img.size
 
     font_size_px = max(12, int(img_h * cfg.font_size / 100))
@@ -173,66 +174,63 @@ def compose_wallpaper(
 
     x, y = _calc_position(img_w, img_h, text_w, text_h, cfg.text_x, cfg.text_y)
 
-    result_img = img
-    if cfg.show_text:
-        text_rgb = ImageColor.getrgb(cfg.font_color)
-        shadow_rgb = ImageColor.getrgb(cfg.shadow_color)
-        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        draw = ImageDraw.Draw(overlay)
+    text_rgb = ImageColor.getrgb(cfg.font_color)
+    shadow_rgb = ImageColor.getrgb(cfg.shadow_color)
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
 
-        # First pass: work out each line's left edge and inter-character gap.
-        last_i = len(lines) - 1
-        max_gap = font_size_px  # cap stretch at ~one character width, else it looks too sparse
-        layout: list[tuple[float, float]] = []  # (lx, gap) per line
-        for i, line in enumerate(lines):
-            aw = align_widths[i]
-            gap = 0.0
-            # Justify every line but the last when left/right aligned, so both edges line up.
-            justify = (cfg.text_align in ("left", "right")
-                       and i != last_i and len(line) > 1 and text_w > aw)
-            if justify:
-                gap = (text_w - aw) / (len(line) - 1)
-                if gap > max_gap:  # too few characters to fill the width nicely
-                    gap = 0.0
-                    justify = False
-            if justify or cfg.text_align == "left":
-                lx = x
-            elif cfg.text_align == "center":
-                lx = x + (text_w - aw) / 2
-            else:  # right
-                lx = x + (text_w - aw)
-            layout.append((lx, gap))
+    # First pass: work out each line's left edge and inter-character gap.
+    last_i = len(lines) - 1
+    max_gap = font_size_px  # cap stretch at ~one character width, else it looks too sparse
+    layout: list[tuple[float, float]] = []  # (lx, gap) per line
+    for i, line in enumerate(lines):
+        aw = align_widths[i]
+        gap = 0.0
+        # Justify every line but the last when left/right aligned, so both edges line up.
+        justify = (cfg.text_align in ("left", "right")
+                   and i != last_i and len(line) > 1 and text_w > aw)
+        if justify:
+            gap = (text_w - aw) / (len(line) - 1)
+            if gap > max_gap:  # too few characters to fill the width nicely
+                gap = 0.0
+                justify = False
+        if justify or cfg.text_align == "left":
+            lx = x
+        elif cfg.text_align == "center":
+            lx = x + (text_w - aw) / 2
+        else:  # right
+            lx = x + (text_w - aw)
+        layout.append((lx, gap))
 
-        if cfg.text_bg_opacity > 0:
-            bg_rgb = ImageColor.getrgb(cfg.text_bg_color)
-            bg_alpha = round(255 * cfg.text_bg_opacity / 100)
-            ascent, descent = font.getmetrics()
-            content_h = (len(lines) - 1) * line_h + ascent + descent
-            pad_x = int(font_size_px * 0.3)
-            pad_y = int(font_size_px * 0.12)
-            box_left = min(lx for lx, _ in layout)
-            box_right = max(lx + full_widths[i] + gap * (len(lines[i]) - 1)
-                            for i, (lx, gap) in enumerate(layout))
-            draw.rounded_rectangle(
-                (box_left - pad_x, y - pad_y, box_right + pad_x, y + content_h + pad_y),
-                radius=int(font_size_px * 0.2),
-                fill=(*bg_rgb, bg_alpha),
-            )
+    if cfg.text_bg_opacity > 0:
+        bg_rgb = ImageColor.getrgb(cfg.text_bg_color)
+        bg_alpha = round(255 * cfg.text_bg_opacity / 100)
+        ascent, descent = font.getmetrics()
+        content_h = (len(lines) - 1) * line_h + ascent + descent
+        pad_x = int(font_size_px * 0.3)
+        pad_y = int(font_size_px * 0.12)
+        box_left = min(lx for lx, _ in layout)
+        box_right = max(lx + full_widths[i] + gap * (len(lines[i]) - 1)
+                        for i, (lx, gap) in enumerate(layout))
+        draw.rounded_rectangle(
+            (box_left - pad_x, y - pad_y, box_right + pad_x, y + content_h + pad_y),
+            radius=int(font_size_px * 0.2),
+            fill=(*bg_rgb, bg_alpha),
+        )
 
-        for i, line in enumerate(lines):
-            lx, gap = layout[i]
-            ly = y + i * line_h
-            _draw_text_line(draw, line, lx + cfg.shadow_offset, ly + cfg.shadow_offset,
-                            font, gap, (*shadow_rgb, 180))
-            _draw_text_line(draw, line, lx, ly, font, gap, (*text_rgb, 255))
-        result_img = Image.alpha_composite(img, overlay)
-
-    return result_img.convert("RGB")
+    for i, line in enumerate(lines):
+        lx, gap = layout[i]
+        ly = y + i * line_h
+        _draw_text_line(draw, line, lx + cfg.shadow_offset, ly + cfg.shadow_offset,
+                        font, gap, (*shadow_rgb, 180))
+        _draw_text_line(draw, line, lx, ly, font, gap, (*text_rgb, 255))
+    return Image.alpha_composite(img, overlay).convert("RGB")
 
 
 def render_wallpaper(background: Path | str, quote: str, cfg: Config) -> Path:
     result = compose_wallpaper(background, quote, cfg, _screen_size())
     out = get_appdata_dir() / "current_wallpaper.png"
     # compress_level=1: wallpaper file size is irrelevant; this is much faster than the default.
-    result.save(str(out), "PNG", compress_level=1)
+    with atomic_output(out) as tmp:
+        result.save(tmp, "PNG", compress_level=1)
     return out

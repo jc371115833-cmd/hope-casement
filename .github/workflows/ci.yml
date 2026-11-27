@@ -30,3 +30,11 @@ jobs:
           if ($process.ExitCode -ne 0) { throw "Wallpaper process exited with $($process.ExitCode)" }
           if (Test-Path dist/error.log) { throw (Get-Content dist/error.log -Raw) }
           uv run --locked python -c "from PIL import Image; im=Image.open('dist/current_wallpaper.png'); assert im.format=='PNG' and im.getextrema()==((18,18),(52,52),(86,86))"
+      - name: Check failure reporting from the packaged entry
+        shell: pwsh
+        run: |
+          '{"background_colors":[],"show_text":false}' | Set-Content dist/config.json -Encoding utf8NoBOM
+          $process = Start-Process -FilePath (Resolve-Path 'dist/HopeCasement.exe').Path -ArgumentList '--change' -WindowStyle Hidden -PassThru
+          if (-not $process.WaitForExit(90000)) { throw 'Wallpaper process timed out' }
+          if ($process.ExitCode -ne 1) { throw "Expected exit code 1, got $($process.ExitCode)" }
+          if (-not (Select-String -Path dist/error.log -Pattern 'FileNotFoundError' -Quiet)) { throw 'Missing failure details' }

@@ -28,13 +28,16 @@ _TR = {
         "status_saved": "✓ 已保存", "status_changed": "✓ 已更换壁纸",
         # app dialogs
         "dlg_save_failed": "保存失败",
+        "invalid_daily_time": "请填写有效的每日时间，例如 09:30（24 小时制）。",
         "dlg_schedule_failed": "计划更新失败",
+        "dlg_retry_schedule": "设置已保存，但 Windows 计划尚未更新。\n重试并退出？选择“否”可直接退出。",
         "dlg_schedule_failed_body": "设置已保存。\n换壁纸计划未能更新：\n{err}",
         "dlg_error": "出错了", "dlg_nobg": "没有背景图",
         "dlg_unsaved": "未保存的修改",
         "dlg_unsaved_body": "有未保存的修改，是否保存后退出？\n\n【是】保存并退出，【否】直接退出。",
         # quotes tab
         "q_import": "导入（.txt/.md）", "q_open_file": "打开文件",
+        "q_edit_conflict": "句库已在外部修改。请先复制编辑区中要保留的句子，关闭窗口时选择「否」，重新打开后合并并保存。",
         "q_len_hint": "建议每句少于 60 字", "q_count": "共 {n} 句",
         "q_restore": "恢复默认句子",
         "q_placeholder": "可直接输入、粘贴，或点左下角导入",
@@ -75,12 +78,15 @@ _TR = {
         "change_now": "Change Now", "changing": "Changing…", "save": "Save",
         "status_saved": "✓ Saved", "status_changed": "✓ Wallpaper changed",
         "dlg_save_failed": "Save failed",
+        "invalid_daily_time": "Enter a valid daily time, for example 09:30 (24-hour clock).",
         "dlg_schedule_failed": "Schedule update failed",
+        "dlg_retry_schedule": "Your settings are saved, but the Windows schedule still needs updating.\nRetry before closing? Choose No to close without retrying.",
         "dlg_schedule_failed_body": "Settings saved.\nThe schedule could not be updated:\n{err}",
         "dlg_error": "Something went wrong", "dlg_nobg": "No background",
         "dlg_unsaved": "Unsaved changes",
         "dlg_unsaved_body": "You have unsaved changes. Save before exiting?\n\n[Yes] Save and exit, [No] Exit without saving.",
         "q_import": "Import (.txt/.md)", "q_open_file": "Open file",
+        "q_edit_conflict": "The quote file changed outside the app. Copy any lines you want to keep, close the window and choose No, then reopen it to merge and save your edits.",
         "q_len_hint": "≤ 60 chars / line", "q_count": "{n} quotes",
         "q_restore": "Restore defaults",
         "q_placeholder": "Type, paste, or use Import (bottom-left)",
@@ -126,6 +132,12 @@ def set_language(lang: str) -> None:
 
 def get_language() -> str:
     return _lang
+
+
+def select_language(preferred: str) -> str:
+    """Select the saved, installer or Windows UI language for either entry point."""
+    set_language(preferred or installer_language() or system_language())
+    return get_language()
 
 
 def t(key: str) -> str:

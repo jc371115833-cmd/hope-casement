@@ -47,8 +47,7 @@ def _parse_import_line(line: str) -> str | None:
     if not line or _HEADING_RE.match(line):
         return None
     line = _LIST_PREFIX_RE.sub("", line, count=1)
-    line = _strip_inline_md(line)
-    return line if line else None
+    return _strip_inline_md(line) or None
 
 
 class QuotesTab(ctk.CTkFrame):
@@ -57,6 +56,7 @@ class QuotesTab(ctk.CTkFrame):
         self._renumbering = False
         self._hint_on = False
         self._hint_text = t("q_placeholder")
+        self._baseline: list[str] = []
         self._build()
         self._load()
 
@@ -410,7 +410,10 @@ class QuotesTab(ctk.CTkFrame):
         self._text.after_idle(self._renumber)
 
     def _on_ctrl_s(self, event) -> str:
-        self.save()
+        try:
+            self.save()
+        except (OSError, UnicodeError) as exc:
+            mb.showerror(t("dlg_save_failed"), str(exc))
         return "break"
 
     # ── public API ─────────────────────────────────────────────────────────
@@ -422,7 +425,7 @@ class QuotesTab(ctk.CTkFrame):
         return [s for ln in text.split("\n") if (s := _strip_num(ln).strip())]
 
     def _set_quotes(self, quotes: list[str]) -> None:
-        """Replace all content without undo bookkeeping (used at load; stack is reset after)."""
+        """Insert editor-owned numbering separately from the quote text."""
         self._hint_on = False  # text is about to be wiped; drop any stale placeholder state
         numbered = "\n".join(f"{i + 1}. {q}" for i, q in enumerate(quotes))
         self._text.delete("1.0", "end")
@@ -433,23 +436,28 @@ class QuotesTab(ctk.CTkFrame):
     def _replace_all_undoable(self, quotes: list[str]) -> None:
         """Replace all content as a single undo unit (used by 导入 / 恢复默认)."""
         with self._atomic_edit():
-            self._text.delete("1.0", "end-1c")
-            self._text.insert("1.0", "\n".join(quotes))
+            self._set_quotes(quotes)
         self._text.mark_set("insert", "1.0")
         self._clamp_cursor()
         self._text.see("insert")
         self._text.after_idle(self._update_hint)
 
-    def _disk_mtime(self) -> float:
-        p = quotes_path()
-        return p.stat().st_mtime if p.exists() else 0.0
+    def _disk_mtime(self) -> int:
+        try:
+            return quotes_path().stat().st_mtime_ns
+        except OSError:
+            return 0
 
     def _load(self) -> None:
-        self._baseline = load_quotes()
+        self._disk_mtime_seen = self._disk_mtime()
+        try:
+            self._baseline = load_quotes()
+        except (OSError, UnicodeError) as exc:
+            mb.showerror(t("dlg_error"), f"{quotes_path()}\n{exc}")
+            return
         self._set_quotes(self._baseline)
         self._renumber()  # append the trailing ghost slot
         self._text.edit_reset()  # loaded content is the undo floor
-        self._disk_mtime_seen = self._disk_mtime()
         self._text.after_idle(self._update_hint)
 
     def poll_reload(self) -> None:
@@ -463,7 +471,11 @@ class QuotesTab(ctk.CTkFrame):
             filetypes=[(t("q_ft_textmd"), "*.txt *.md"), (t("q_ft_all"), "*.*")])
         if not path:
             return
-        raw = Path(path).read_text(encoding="utf-8", errors="ignore")
+        try:
+            raw = Path(path).read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeError) as exc:
+            mb.showerror(t("dlg_error"), str(exc))
+            return
         lines = raw.splitlines()
         if len(lines) > _FILE_SIZE_WARN:
             if not mb.askyesno(t("q_large_title"), t("q_large_body").format(n=len(lines))):
@@ -471,8 +483,9 @@ class QuotesTab(ctk.CTkFrame):
         parsed = [q for ln in lines if (q := _parse_import_line(ln)) is not None]
         existing = self._get_quotes()
         existing_set = set(existing)
-        new_quotes = [q for q in parsed if q not in existing_set]
-        self._replace_all_undoable(existing + new_quotes)
+        new_quotes = [q for q in dict.fromkeys(parsed) if q not in existing_set]
+        if new_quotes:
+            self._replace_all_undoable(existing + new_quotes)
         mb.showinfo(
             t("q_import_done"),
             t("q_import_done_body").format(
@@ -482,11 +495,11 @@ class QuotesTab(ctk.CTkFrame):
     def _open_file(self) -> None:
         # Persist the current view first so the opened file matches what's shown;
         # external edits then sync back via poll_reload.
-        self.save()
         try:
+            self.save()
             os.startfile(quotes_path())
-        except OSError:
-            pass
+        except (OSError, UnicodeError) as exc:
+            mb.showerror(t("dlg_error"), str(exc))
 
     def _restore(self) -> None:
         self._replace_all_undoable(default_quotes())
@@ -496,6 +509,13 @@ class QuotesTab(ctk.CTkFrame):
 
     def save(self) -> None:
         quotes = self._get_quotes()
+        if quotes == self._baseline:
+            self.poll_reload()
+            return
+        if quotes_path().exists():
+            disk_quotes = load_quotes()
+            if disk_quotes != self._baseline and disk_quotes != quotes:
+                raise OSError(t("q_edit_conflict"))
         save_quotes(quotes)
         self._baseline = quotes
         self._disk_mtime_seen = self._disk_mtime()

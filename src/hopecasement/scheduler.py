@@ -10,7 +10,6 @@ from hopecasement.config import Config
 
 _TASK_INTERVAL = r"\HopeCasement\ChangeOnInterval"
 _TASK_DAILY = r"\HopeCasement\ChangeAtTime"
-_ALL_TASKS = [_TASK_INTERVAL, _TASK_DAILY]
 _TASK_NS = "http://schemas.microsoft.com/windows/2004/02/mit/task"
 
 _RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
@@ -23,23 +22,19 @@ def _exe_path() -> str:
     return str(Path(sys.executable).resolve())
 
 
-def _schtasks(*args: str) -> None:
+def _schtasks(*args: str, missing_ok: bool = False) -> None:
     result = subprocess.run(
-        ["schtasks", *args],
+        ["schtasks", *args, "/HRESULT"],
         capture_output=True,
         text=True,
+        errors="replace",
         creationflags=subprocess.CREATE_NO_WINDOW,
     )
-    if result.returncode != 0:
-        raise RuntimeError(f"schtasks 失败：{result.stderr.strip() or result.stdout.strip()}")
-
-
-def _delete_task(name: str) -> None:
-    subprocess.run(
-        ["schtasks", "/delete", "/tn", name, "/f"],
-        capture_output=True,
-        creationflags=subprocess.CREATE_NO_WINDOW,
-    )
+    # Missing task or missing task folder are both valid when disabling a trigger.
+    code = result.returncode & 0xFFFFFFFF
+    if code and not (missing_ok and code in (0x80070002, 0x80070003)):
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise RuntimeError(f"schtasks (0x{code:08X}): {detail}")
 
 
 def _task_xml(exe: str, trigger_xml: str) -> str:
@@ -102,9 +97,7 @@ def _create_task_xml(name: str, xml: str) -> None:
 
 
 def _set_startup_registry(exe: str) -> None:
-    with winreg.OpenKey(
-        winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_SET_VALUE
-    ) as key:
+    with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
         winreg.SetValueEx(key, _RUN_VALUE, 0, winreg.REG_SZ, f'"{exe}" --change')
 
 
@@ -114,46 +107,34 @@ def _delete_startup_registry() -> None:
             winreg.HKEY_CURRENT_USER, _RUN_KEY, 0, winreg.KEY_SET_VALUE
         ) as key:
             winreg.DeleteValue(key, _RUN_VALUE)
-    except OSError:
+    except FileNotFoundError:
         pass
-
-
-def clear_all_tasks() -> None:
-    _delete_startup_registry()
-    for task in _ALL_TASKS:
-        _delete_task(task)
 
 
 def apply_schedule(cfg: Config) -> None:
     exe = _exe_path()
     errors: list[str] = []
 
-    # startup: registry Run key
-    if "startup" in cfg.schedule_modes:
-        _set_startup_registry(exe)
-    else:
-        _delete_startup_registry()
+    try:
+        if "startup" in cfg.schedule_modes:
+            _set_startup_registry(exe)
+        else:
+            _delete_startup_registry()
+    except OSError as e:
+        errors.append(f"HKCU\\{_RUN_KEY}\\{_RUN_VALUE}: {e}")
 
-    # interval: repeat every N minutes, indefinitely, even on battery
-    if "interval" in cfg.schedule_modes:
-        total_minutes = cfg.interval_hours * 60 + cfg.interval_minutes
-        if total_minutes < 1:
-            total_minutes = 60
+    total_minutes = max(1, cfg.interval_hours * 60 + cfg.interval_minutes)
+    for mode, name, trigger in (
+        ("interval", _TASK_INTERVAL, _interval_trigger(total_minutes)),
+        ("daily", _TASK_DAILY, _daily_trigger(cfg.daily_time)),
+    ):
         try:
-            _create_task_xml(_TASK_INTERVAL, _task_xml(exe, _interval_trigger(total_minutes)))
-        except RuntimeError as e:
-            errors.append(str(e))
-    else:
-        _delete_task(_TASK_INTERVAL)
-
-    # daily: once per day at the set time, even on battery
-    if "daily" in cfg.schedule_modes:
-        try:
-            _create_task_xml(_TASK_DAILY, _task_xml(exe, _daily_trigger(cfg.daily_time)))
-        except RuntimeError as e:
-            errors.append(str(e))
-    else:
-        _delete_task(_TASK_DAILY)
+            if mode in cfg.schedule_modes:
+                _create_task_xml(name, _task_xml(exe, trigger))
+            else:
+                _schtasks("/delete", "/tn", name, "/f", missing_ok=True)
+        except (OSError, RuntimeError) as e:
+            errors.append(f"{name}: {e}")
 
     if errors:
         raise RuntimeError("\n".join(errors))
