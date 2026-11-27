@@ -146,15 +146,17 @@ def _calc_position(
     return x, y
 
 
-def render_wallpaper(background: Path | str, quote: str, cfg: Config) -> Path:
-    screen_w, screen_h = _screen_size()
+def compose_wallpaper(
+    background: Path | str, quote: str, cfg: Config, size: tuple[int, int]
+) -> Image.Image:
+    """Compose an RGB image for the supplied canvas size, in pixels."""
     if isinstance(background, str):
         rgb = ImageColor.getrgb(background)
-        img = Image.new("RGBA", (screen_w, screen_h), (*rgb, 255))
+        img = Image.new("RGBA", size, (*rgb, 255))
     else:
-        img = Image.open(background)
-        img.draft("RGB", (screen_w, screen_h))  # fast approximate downscale while decoding JPEG
-        img = _cover_resize(img.convert("RGBA"), screen_w, screen_h)
+        with Image.open(background) as source:
+            source.draft("RGB", size)  # fast approximate downscale while decoding JPEG
+            img = _cover_resize(source.convert("RGBA"), *size)
     img_w, img_h = img.size
 
     font_size_px = max(12, int(img_h * cfg.font_size / 100))
@@ -225,8 +227,11 @@ def render_wallpaper(background: Path | str, quote: str, cfg: Config) -> Path:
             _draw_text_line(draw, line, lx, ly, font, gap, (*text_rgb, 255))
         result_img = Image.alpha_composite(img, overlay)
 
-    result = result_img.convert("RGB")
+    return result_img.convert("RGB")
 
+
+def render_wallpaper(background: Path | str, quote: str, cfg: Config) -> Path:
+    result = compose_wallpaper(background, quote, cfg, _screen_size())
     out = get_appdata_dir() / "current_wallpaper.png"
     # compress_level=1: wallpaper file size is irrelevant; this is much faster than the default.
     result.save(str(out), "PNG", compress_level=1)
