@@ -1,20 +1,65 @@
 **简体中文** | [English](README.en.md)
 
 <div align="center">
+
 <img src="docs/assets/branding/logo.png" alt="来日窗笺" width="120">
 
 # 来日窗笺 HopeCasement
 
-用喜欢的句子和背景生成 Windows 壁纸，按约定的时间自动更换。
+**随机组合句子与背景，定时换壁纸**
 
-[下载安装包](https://github.com/jc371115833-cmd/hope-casement/releases) · [使用手册](docs/index.md) · [反馈问题](https://github.com/jc371115833-cmd/hope-casement/issues) · [参与开发](CONTRIBUTING.md)
+[功能特点](#功能特点) · [快速开始](#快速开始) · [使用手册](docs/index.md) · [反馈问题](https://github.com/jc371115833-cmd/hope-casement/issues) · [参与开发](CONTRIBUTING.md)
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6?logo=windows\&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python\&logoColor=white)
+[![Release](https://img.shields.io/github/v/release/jc371115833-cmd/hope-casement)](https://github.com/jc371115833-cmd/hope-casement/releases)
 
 </div>
 
-<img src="docs/assets/demos/demo-random.gif" alt="同一句库与不同背景随机组合生成壁纸" width="1024">
 
-在 Windows 10 或 11 上安装后，打开窗口，点击 **立即换壁纸** 即可用内置句子和纯色背景试用。你也可以导入自己的句子和图片，调整字体、颜色、阴影、对齐和位置。
+## 为什么选择来日窗笺
 
-想让它自动更换，在 **换壁纸设置** 里选择登录、间隔或每日定时，点击 **保存设置**。关闭配置窗口后，Windows 会在约定时间启动程序，生成一张壁纸后退出。
+因为简单，让喜欢的句子随机落在不同的壁纸上，定时更新。轻量、不占后台，无感使用。
 
-本项目采用 [MIT](LICENSE) 许可证。
+
+## 功能特点
+
+**🎲 随机组合** —— 你的句子 × 背景（图片或纯色），每次随机
+
+<img src="docs/assets/demos/demo-random.gif" alt="随机组合演示" width="1024">
+
+<br />
+
+**✍️ 句子与背景自定义** —— 输入、粘贴或导入句子；导入中意的图片或简洁纯色作背景
+
+<img src="docs/assets/demos/demo-content.gif" alt="句子与背景自定义演示" width="1024">
+
+<br />
+
+**🎨 样式可定制** —— 字体、颜色、阴影、对齐、位置可调
+
+<img src="docs/assets/demos/demo-style.gif" alt="样式调整演示" width="1024">
+
+<br />
+
+**⏰ 定时自动换** —— 开机 / 定时 / 固定时间
+
+<img src="docs/assets/demos/demo-schedule.png" alt="定时自动换演示" width="340">
+
+> 不占后台，定时运行一次。
+
+## 快速开始
+
+前往 [Release 页](https://github.com/jc371115833-cmd/hope-casement/releases) 下载安装包
+
+> 目前仅支持 Windows 10 / 11
+
+
+## 参与开发
+
+见 [CONTRIBUTING.md](CONTRIBUTING.md)
+
+***
+
+本项目采用 [MIT](LICENSE) 许可证 · © 2026 KingKing
