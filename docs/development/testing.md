@@ -27,4 +27,4 @@ uv run --locked python -c "from pathlib import Path; from tempfile import gettem
 
 ## 什么时候需要实机
 
-[Windows CI](../../.github/workflows/ci.yml) 运行完整回归，在临时 runner 上构建并执行打包版 `--change`。它用固定纯色核对生成的 PNG，再用空背景列表验证失败退出码为 1 且写入错误日志。Windows 是否在用户登录或到点后执行、桌面是否可见更新，以及覆盖升级和卸载的结果，按[安装版验收](release.md#安装版验收)在专用 Windows 账户或虚拟机观察并记录。
+[Windows CI](../../.github/workflows/ci.yml) 运行完整回归，在临时 Windows 环境中检查打包版 `--change` 的成功与失败路径，并用安装包验证首次安装、从旧版覆盖升级和卸载。桌面是否可见更新、用户登录或计划到点后是否实际换图，需要在专用 Windows 账户或虚拟机中观察。[安装版验收](release.md#安装版验收)

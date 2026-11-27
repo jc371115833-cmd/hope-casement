@@ -26,3 +26,4 @@
 | 修改设置字段、迁移规则或数据目录 | [配置与数据兼容](architecture/configuration-and-data.md) |
 | 验证一次改动 | [自动化回归与 Windows 验证](development/testing.md) |
 | 构建安装包、验证升级并发布 | [打包与发布](development/release.md) |
+| 查看版本变化和升级说明 | [v0.1.1 版本说明](releases/v0.1.1.md) |
