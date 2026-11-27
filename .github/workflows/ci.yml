@@ -1,0 +1,32 @@
+name: Windows checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.12'
+      - run: uv sync --locked
+      - name: Run regression and documentation tests
+        run: uv run --locked python -m unittest discover -s tests -v
+      - name: Build the Windows application
+        run: uv run --locked pyinstaller --noconfirm HopeCasement.spec
+      - name: Run the packaged wallpaper entry on the disposable runner
+        shell: pwsh
+        run: |
+          $app = (Resolve-Path 'dist/HopeCasement.exe').Path
+          '{"background_colors":["#123456"],"show_text":false,"schedule_modes":[]}' | Set-Content dist/config.json -Encoding utf8NoBOM
+          $process = Start-Process -FilePath $app -ArgumentList '--change' -WindowStyle Hidden -PassThru
+          if (-not $process.WaitForExit(90000)) { throw 'Wallpaper process timed out' }
+          if ($process.ExitCode -ne 0) { throw "Wallpaper process exited with $($process.ExitCode)" }
+          if (Test-Path dist/error.log) { throw (Get-Content dist/error.log -Raw) }
+          uv run --locked python -c "from PIL import Image; im=Image.open('dist/current_wallpaper.png'); assert im.format=='PNG' and im.getextrema()==((18,18),(52,52),(86,86))"
