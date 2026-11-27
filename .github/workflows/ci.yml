@@ -2,7 +2,10 @@ name: Windows checks
 
 on:
   push:
+    branches: [main]
+    tags: ['v*']
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -10,12 +13,24 @@ permissions:
 jobs:
   verify:
     runs-on: windows-latest
+    timeout-minutes: 25
+    outputs:
+      release_tag: ${{ steps.version.outputs.release_tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: '3.12'
       - run: uv sync --locked
+      - name: Check the release version and notes
+        id: version
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before || github.event.pull_request.base.sha }}
+        run: uv run --locked python .github/scripts/release-version.py
       - name: Run regression and documentation tests
         run: uv run --locked python -m unittest discover -s tests -v
       - name: Build the Windows application
@@ -38,3 +53,88 @@ jobs:
           if (-not $process.WaitForExit(90000)) { throw 'Wallpaper process timed out' }
           if ($process.ExitCode -ne 1) { throw "Expected exit code 1, got $($process.ExitCode)" }
           if (-not (Select-String -Path dist/error.log -Pattern 'FileNotFoundError' -Quiet)) { throw 'Missing failure details' }
+      - name: Compile the installer
+        shell: pwsh
+        run: ./.github/scripts/build-installer.ps1
+      - name: Test clean install, upgrade from the published v0.1.0, and uninstall
+        shell: pwsh
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $previous = Join-Path $env:RUNNER_TEMP 'HopeCasement-Setup-v0.1.0.exe'
+          $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/releases/download/v0.1.0/HopeCasement-Setup-v0.1.0.exe"
+          curl.exe --fail --location --retry 3 --silent --show-error --output $previous $url
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download v0.1.0' }
+          if ((Get-FileHash $previous).Hash -ne '342f01fe2b4c33584a9b79635f1fcdaad119ce60f94fbd071aad230d9967849d') {
+            throw 'The published v0.1.0 installer failed SHA-256 verification'
+          }
+          ./.github/scripts/test-installer.ps1 -PreviousInstaller $previous -CandidateInstaller setup/HopeCasement.exe -ExpectedVersion $env:EXPECTED_VERSION
+      - name: Prepare the verified installer and checksum
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          mkdir release-assets
+          cd release-assets
+          installer="HopeCasement-Setup-$GITHUB_REF_NAME.exe"
+          cp ../setup/HopeCasement.exe "$installer"
+          digest=$(sha256sum --binary "$installer")
+          printf '%s  %s\n' "${digest%% *}" "$installer" > SHA256SUMS.txt
+          sha256sum --check SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        if: github.ref_type == 'tag'
+        with:
+          name: installer-${{ github.ref_name }}
+          path: release-assets/
+          if-no-files-found: error
+          overwrite: true
+
+  tag-version:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.verify.outputs.release_tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ needs.verify.outputs.release_tag }}
+    steps:
+      - name: Tag the verified commit and start the build on that tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          refs=$(gh api "repos/$GH_REPO/git/matching-refs/tags/$RELEASE_TAG")
+          current=$(jq -r --arg ref "refs/tags/$RELEASE_TAG" '.[] | select(.ref == $ref) | .object.sha' <<< "$refs")
+          if [[ -z "$current" ]]; then
+            gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$RELEASE_TAG" -f sha="$GITHUB_SHA" --silent
+          elif [[ "$current" != "$GITHUB_SHA" ]]; then
+            echo "::error::Existing tag $RELEASE_TAG differs from the verified commit."
+            exit 1
+          fi
+          # Tag pushes made with GITHUB_TOKEN do not trigger push workflows.
+          gh workflow run ci.yml --repo "$GH_REPO" --ref "$RELEASE_TAG"
+
+  draft-release:
+    needs: verify
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: draft-${{ github.ref_name }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer-${{ github.ref_name }}
+          path: release-assets
+      - name: Generate release notes, upload assets, and verify the draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: bash .github/scripts/draft-release.sh

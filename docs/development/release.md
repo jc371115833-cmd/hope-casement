@@ -1,32 +1,45 @@
-# 构建与验证 Windows 安装包
+# 发布 Windows 安装包
 
-在 Windows 仓库根目录执行，使用锁定的 Python 环境及 Inno Setup 6。若编译器缺少中文语言文件，将与编译器版本对应的 `ChineseSimplified.isl` 放入它的 `Languages` 目录。[Inno Setup 6.7.3 简体中文文件](https://github.com/jrsoftware/issrc/blob/is-6_7_3/Files/Languages/Unofficial/ChineseSimplified.isl)
+## 从发布 PR 到草稿 Release
 
-发布新版本时，在 [pyproject.toml](../../pyproject.toml) 更新 `project.version`，同步 `uv.lock`。窗口和安装器从项目元数据取得版本。覆盖安装沿用[安装脚本](../../setup/Hopecasement.iss)中的 `AppId`，使 Windows 能识别原有安装。
+1. 在发布分支更新 [pyproject.toml](../../pyproject.toml) 的 `project.version`，运行 `uv lock` 并提交锁文件。在 `docs/releases/v<版本>.md` 写入用户能观察到的变化、升级方法和待验项，从[文档索引](../index.md)加上入口。正文会进入 GitHub Release，其中的手册链接应指向本次标签。[v0.1.1 说明示例](../releases/v0.1.1.md)
+2. 向 `main` 提交 PR。打开该 PR 的 Checks，等待最新提交的 Windows CI 全部通过，然后合并。修复导致检查失败的问题后，把改动推到同一 PR，等待新的检查结果。
+3. 在 PR 页面记下合并提交的 SHA，然后打开 [GitHub Actions](https://github.com/jc371115833-cmd/hope-casement/actions)。当 `main` 上该提交的 **Windows checks** 通过且版本递增时，工作流会为该提交创建标签，例如 `v0.1.1`，并以同一标签启动发布。已有同名标签必须指向同一提交。
+4. 在 Actions 核对发布运行的标签和提交 SHA。工作流从标签构建安装包，通过 Windows 验收后生成 SHA-256 和发布说明，将附件上传到草稿 Release。
+5. 在草稿中核对标签、提交、安装包和校验值。下载附件后，在 PowerShell 执行下列命令，将输出的 Hash 与该文件名对应的 SHA-256 核对。公开发布前在草稿中补上实机验收结果。[GitHub Releases](https://github.com/jc371115833-cmd/hope-casement/releases)
+
+   ```powershell
+   Get-FileHash .\HopeCasement-Setup-v0.1.1.exe -Algorithm SHA256
+   ```
+
+### 触发与恢复
+
+自动流程用 `GITHUB_TOKEN` 建标签，再显式调用 `workflow_dispatch` 启动该标签的发布。这样即使 GitHub 屏蔽由该令牌产生的递归 `push` 事件，构建仍会运行。维护者手工推送指向已通过 Windows 检查的版本标签，也可触发同一发布流程。[GitHub 的令牌触发规则](https://docs.github.com/en/actions/concepts/security/github_token)
+
+临时故障可在对应的 Actions 运行中选择 **Re-run failed jobs**。标签已建立或同一版本已创建草稿时，也从失败作业重试。若标签所指的源码需要修改，另开 PR 并递增版本，用新标签发布修复。
+
+## 在 Windows 上构建
+
+在仓库根目录用 PowerShell 7 运行以下命令。[PyInstaller 配置](../../HopeCasement.spec)将应用入口、主题、图标和 CustomTkinter 资源打成 `dist/HopeCasement.exe`。[构建脚本](../../.github/scripts/build-installer.ps1)下载并校验固定版本的 Inno Setup 和简体中文语言文件，然后生成安装包 `setup/HopeCasement.exe`。应用窗口与安装器共用 `project.version`，覆盖升级沿用[安装脚本](../../setup/Hopecasement.iss)中的 `AppId`。
 
 ```powershell
 uv sync --locked
 uv run --locked python -m unittest discover -s tests -v
 uv run --locked pyinstaller --noconfirm HopeCasement.spec
-ISCC.exe setup\Hopecasement.iss
+./.github/scripts/build-installer.ps1
 ```
-
-`ISCC.exe` 未加入 PATH 时，用 PowerShell 的 `&` 调用编译器完整路径。每一步成功后再运行下一步。两个同名 exe 的用途如下：
-
-| 路径 | 用途 |
-| --- | --- |
-| `dist/HopeCasement.exe` | PyInstaller 产生的应用程序；支持无参配置窗口和 `--change` |
-| `setup/HopeCasement.exe` | Inno Setup 生成的安装包，供用户下载 |
-
-PyInstaller 的入口、主题、图标和 CustomTkinter 资源列在[打包配置](../../HopeCasement.spec)。安装器从 `dist/` 取应用程序，安装目录、语言选择、登录项和卸载清理在[安装脚本](../../setup/Hopecasement.iss)中维护。
 
 ## 安装版验收
 
-在独立 Windows 测试用户或虚拟机中完成以下步骤。验收记录写到对应改动或发布记录中，注明构建版本、Windows 版本、实际观察与未覆盖项目。
+### CI 自动检查
 
-1. **首次安装。** 从安装包启动应用。核对窗口可见、语言、图标、三个标签页，再按[首张壁纸教程](../user-guide/getting-started/first-wallpaper.md)生成指定的句子和背景。
-2. **手动与计划。** 设置几分钟后的每日时间，点击保存并关闭。到点核对任务的上次运行时间、生成文件和桌面。在窗口中修改为另一个时间，通过关闭时确认保存，核对系统里的新触发时间。分别验证间隔和下次登录，再全部取消并保存。
-3. **覆盖升级。** 用上一个发布版创建测试句库、纯色和自定义背景目录，启用登录换图并保存。[备份个人数据](../user-guide/data/backup-and-restore.md)后覆盖安装，先检查已有登录项是否保留，再打开程序核对设置、句库和图片。保存后核对登录项和计划任务都指向本次安装的程序。
-4. **卸载与恢复。** 在测试环境卸载，确认预期清理的数据文件、注册项及两个任务已移除，外部图片目录与备份仍可读。重装，按备份手册恢复并生成壁纸。
+在独立 Windows runner 上，[Windows CI](../../.github/workflows/ci.yml)执行打包版 `--change`，检查生成的 PNG、失败退出码和错误日志。[安装器验收脚本](../../.github/scripts/test-installer.ps1)先验证新版能全新安装和卸载，再用已发布的 v0.1.0 安装包建立旧版环境，执行覆盖升级，核对版本、个人数据、登录项和计划任务。卸载后还要核对注册项和安装数据已清理，外部图片和备份仍可读取。实际结果见该次 Actions 日志。后续发布若要验证从较新版本升级，在发布 PR 中更新旧版安装包基线和校验值。
 
-如果安装器或语言文件有变动，分别用中、英文安装界面核对菜单与程序名称。发布 Release 时上传安装包，说明用户可见变化、升级和备份注意事项。
+### 实机检查
+
+使用草稿中的安装包，在独立 Windows 测试账户或虚拟机中完成以下交互检查。把安装包 SHA-256、Windows 版本、实测结果和待验项写入草稿。
+
+1. 用中、英文安装界面核对程序名称和菜单。打开配置窗口，按[首张壁纸教程](../user-guide/getting-started/first-wallpaper.md)生成指定的句子和背景，确认真实桌面显示正确。
+2. 只启用每日计划并设置接下来几分钟的时间，保存并关闭窗口。到点核对任务的上次运行时间、图片文件和桌面。改成另一时间，通过关闭窗口时确认保存，再核对新时间。用同样方式检查间隔触发。[验证自动计划](../user-guide/scheduling/automatic-changes.md)
+3. 只启用「开机时换」，保存，注销并重新登录测试账户，核对壁纸和生成时间。验完后取消测试计划并保存。
+4. 如需验证从备份恢复，在安装目录外备份测试数据，卸载后重装，恢复配置、句库和图片，再用恢复的素材生成壁纸。[备份与恢复](../user-guide/data/backup-and-restore.md)
